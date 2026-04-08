@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FocusTube — YouTube Playlist to Course LMS</title>
+    <meta name="description" content="FocusTube turns any YouTube playlist into a distraction-free course with progress tracking and timestamped notes.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+</head>
+<body>
+
+    <!-- ===== LANDING / ONBOARDING ===== -->
+    <div id="landing-screen" class="screen">
+        <button class="landing-theme-toggle" id="landing-theme-toggle" title="Toggle theme">☀️</button>
+        <div class="landing-wrapper">
+            <div class="landing-left">
+                <span class="badge">100% Local · No Sign-Up · Free</span>
+                <h1>Learn without<br>distractions.</h1>
+                <p class="landing-desc">FocusTube converts any YouTube playlist into a structured course with progress tracking, timestamped notes, and zero distractions.</p>
+                
+                <div class="feature-pills">
+                    <div class="pill"><span class="pill-icon">📊</span> Progress Tracking</div>
+                    <div class="pill"><span class="pill-icon">📝</span> Timestamped Notes</div>
+                    <div class="pill"><span class="pill-icon">🔒</span> 100% Private</div>
+                </div>
+            </div>
+            <div class="landing-right">
+                <div class="onboarding-card">
+                    <div class="role-tabs">
+                        <button class="role-tab active" id="learner-tab">Learner</button>
+                        <button class="role-tab" id="creator-tab">Creator</button>
+                    </div>
+                    <div id="learner-panel" class="role-panel active">
+                        <h3>Start your learning journey</h3>
+                        <p>All data stays in your browser. Nothing leaves your machine.</p>
+                        <div class="form-stack">
+                            <label for="username-input">Your name</label>
+                            <input type="text" id="username-input" placeholder="e.g. Arun">
+                            <label for="focus-limit-input">Focus Limit (Active Courses)</label>
+                            <input type="number" id="focus-limit-input" value="5" min="1" max="50">
+                            <button id="save-name-btn" class="btn-primary">Continue →</button>
+                        </div>
+                    </div>
+                    <div id="creator-panel" class="role-panel">
+                        <h3>Create & share courses</h3>
+                        <p>Build a shareable course from any unlisted YouTube playlist. Password-protect it for your students.</p>
+                        <div class="coming-soon-badge">Coming in Phase 4</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== DASHBOARD ===== -->
+    <div id="welcome-screen" class="screen">
+        <nav class="topbar">
+            <div class="topbar-brand">
+                <span class="logo-mark">▶</span> FocusTube
+            </div>
+            <div class="topbar-meta">
+                <button class="btn-ghost btn-sm" id="theme-toggle" title="Toggle light/dark mode">☀️ Light</button>
+                <span class="topbar-time" id="total-time-stat">0m studied</span>
+                <div class="avatar-wrapper">
+                    <span class="topbar-avatar" id="user-avatar">A</span>
+                    <div class="profile-dropdown" id="profile-dropdown">
+                        <div class="profile-dropdown-header">
+                            <span class="profile-name" id="profile-name">User</span>
+                            <span class="profile-role">Learner</span>
+                        </div>
+                        <div class="profile-dropdown-body">
+                            <button class="dropdown-item" id="rename-user-btn">✏️ Change Name</button>
+                            <button class="dropdown-item" id="set-support-btn">💖 Support Link</button>
+                            <button class="dropdown-item" id="set-focus-btn">⚙️ Focus Limit</button>
+                            <button class="dropdown-item" id="backup-data-btn">💾 Backup Data</button>
+                            <button class="dropdown-item" id="restore-data-btn">📂 Restore Data</button>
+                            <button class="dropdown-item" id="reset-data-btn">🗑️ Reset All Data</button>
+                            <input type="file" id="restore-input" style="display:none;" accept=".json">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <div class="dashboard-body">
+            <header class="dash-header">
+                <div>
+                    <h1 id="greeting-text">Good morning</h1>
+                    <p class="dash-subtitle" id="last-studied-stat">Add your first course to get started.</p>
+                </div>
+                <button class="btn-primary btn-import" id="toggle-import-btn">+ New Course</button>
+            </header>
+
+            <!-- Collapsible Import -->
+            <div class="import-panel" id="import-panel" style="display:none;">
+                <div class="import-inner">
+                    <input type="text" id="playlist-input" placeholder="Paste YouTube playlist URL...">
+                    <input type="text" id="course-title-input" placeholder="Course name (e.g. Machine Learning 101)">
+                    <div class="import-actions">
+                        <button id="start-btn" class="btn-primary">Import</button>
+                        <button id="cancel-import-btn" class="btn-ghost">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity Insights -->
+            <section class="activity-section">
+                <h2 class="section-title">Activity</h2>
+                <div class="activity-cards">
+                    <div class="activity-card">
+                        <span class="activity-icon">⏱</span>
+                        <div>
+                            <span class="activity-card-label">Total Study Time</span>
+                            <span class="activity-card-value" id="activity-total-time">0m</span>
+                        </div>
+                    </div>
+                    <div class="activity-card">
+                        <span class="activity-icon">📚</span>
+                        <div>
+                            <span class="activity-card-label">Courses</span>
+                            <span class="activity-card-value" id="activity-course-count">0</span>
+                        </div>
+                    </div>
+                    <div class="activity-card">
+                        <span class="activity-icon">🔥</span>
+                        <div>
+                            <span class="activity-card-label">Last Studied</span>
+                            <span class="activity-card-value" id="activity-last-course">—</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Course Grid -->
+            <section class="courses-section">
+                <h2 class="section-title">Your Courses</h2>
+                <div id="dashboard-course-grid" class="course-grid">
+                    <!-- Injected by JS -->
+                </div>
+            </section>
+
+            <footer class="dash-footer">
+                <a href="#" id="footer-support-link" class="coffee-link" target="_blank" rel="noopener noreferrer">☕ Support this project</a>
+            </footer>
+        </div>
+    </div>
+
+    <!-- ===== COURSE VIEW ===== -->
+    <div id="course-screen" class="screen">
+        <aside class="sidebar">
+            <div class="sidebar-top">
+                <button id="back-btn" class="btn-back" title="Back to Dashboard">←</button>
+                <div class="sidebar-course-info">
+                    <span class="sidebar-label">COURSE</span>
+                    <h3 class="sidebar-course-title" id="sidebar-course-title">—</h3>
+                </div>
+            </div>
+            <div class="sidebar-progress">
+                <div class="progress-bar-bg"><div class="progress-bar-fill" id="total-progress-bar"></div></div>
+                <span class="progress-text" id="progress-text">0%</span>
+            </div>
+            <ul id="video-list" class="video-list"></ul>
+        </aside>
+
+        <main class="main-content">
+            <div class="video-container">
+                <div class="aspect-ratio-wrapper"><div id="player"></div></div>
+                <div class="video-scrub"><div id="current-video-fill" class="video-scrub-fill"></div></div>
+            </div>
+            
+            <div class="notes-panel">
+                <div class="notes-header">
+                    <h2>Notes</h2>
+                    <div class="notes-actions">
+                        <button id="add-timestamp-btn" class="btn-ghost btn-sm">⏱ Timestamp</button>
+                        <button id="export-notes-btn" class="btn-ghost btn-sm">📥 Export</button>
+                    </div>
+                </div>
+                <div id="notes-list" class="notes-list"></div>
+                <div class="notes-input-area">
+                    <textarea id="notes-input" placeholder="Write a note… Use the timestamp button to mark the current moment."></textarea>
+                    <button id="save-note-btn" class="btn-primary btn-sm">Save</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ===== COMPLETION CELEBRATION MODAL ===== -->
+    <div id="completion-modal" class="modal-overlay">
+        <div class="completion-content glass-card">
+            <div class="completion-icon">🏆</div>
+            <h1 class="completion-title">Course Completed!</h1>
+            <p class="completion-text">Amazing work! You've mastered this subject and leveled up your knowledge.</p>
+            <div class="completion-stats">
+                <div class="comp-stat">
+                    <span class="comp-label">Time Spent</span>
+                    <span class="comp-value" id="comp-time">0h 0m</span>
+                </div>
+                <div class="comp-stat">
+                    <span class="comp-label">Notes Taken</span>
+                    <span class="comp-value" id="comp-notes">0</span>
+                </div>
+            </div>
+            <button id="close-completion-btn" class="btn-primary">Back to Dashboard</button>
+        </div>
+    </div>
+
+    <!-- ===== FOCUS LIMIT WARNING MODAL ===== -->
+    <div id="focus-warning-modal" class="modal-overlay">
+        <div class="focus-warning-content glass-card">
+            <div class="focus-warning-icon">🎯</div>
+            <h2 class="focus-warning-title">Focus Limit Reached!</h2>
+            <p class="focus-warning-text" id="focus-warning-desc">You've hit your course limit. Stay focused — finish or remove a course before adding something new.</p>
+            <div class="focus-course-list" id="focus-course-list"></div>
+            <div class="focus-warning-actions">
+                <button id="close-focus-warning-btn" class="btn-primary">Got it, Stay Focused</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="main.js?v=12"></script>
+</body>
+</html>
