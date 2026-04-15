@@ -51,7 +51,8 @@ const AuthService = {
         }
         const provider = new firebase.auth.GoogleAuthProvider();
         try {
-            await firebase.auth().signInWithPopup(provider);
+            // Using redirect prevents aggressive browser popup blockers on mobile/desktop
+            await firebase.auth().signInWithRedirect(provider);
         } catch (error) {
             console.error("Login failed", error);
             alert("Login failed: " + error.message);
