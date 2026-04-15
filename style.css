@@ -140,6 +140,52 @@ body {
 
 .btn-sm { padding: 0.4rem 0.75rem; font-size: 0.8125rem; }
 
+.btn-google {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.65rem 1.25rem;
+    border-radius: var(--radius-sm);
+    background: #ffffff;
+    color: #3c4043;
+    font-size: 0.875rem;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    border: 1px solid #dadce0;
+    cursor: pointer;
+    transition: background 0.15s ease, box-shadow 0.15s ease;
+    margin-bottom: 1.5rem;
+}
+.btn-google:hover { background: #f8f9fa; box-shadow: 0 1px 3px rgba(60,64,67,0.3); }
+[data-theme="dark"] .btn-google { background: #1a1a22; color: #e8e8ed; border-color: rgba(255,255,255,0.15); }
+[data-theme="dark"] .btn-google:hover { background: rgba(255,255,255,0.05); }
+
+.google-icon {
+    width: 18px;
+    height: 18px;
+}
+
+.auth-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 1.5rem 0;
+    color: var(--text-tertiary);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+}
+.auth-divider::before, .auth-divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--border);
+}
+.auth-divider span {
+    padding: 0 0.75rem;
+}
+
 input, textarea {
     background: var(--bg);
     border: 1px solid var(--border);
@@ -1112,4 +1158,119 @@ textarea { resize: none; height: 56px; }
 @keyframes pulse {
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.08); }
+}
+
+/* ========================================
+   Responsive (Mobile-Friendly) Defaults
+   ======================================== */
+@media (max-width: 900px) {
+    /* Landing Page */
+    .landing-wrapper {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+        padding: 5rem 1.5rem 2rem;
+        text-align: center;
+    }
+    .landing-left h1 {
+        font-size: 2.5rem;
+    }
+    .landing-desc {
+        margin: 0 auto;
+    }
+    .feature-pills {
+        justify-content: center;
+    }
+    .landing-theme-toggle {
+        top: 1rem;
+        right: 1rem;
+    }
+
+    /* Dashboard */
+    .activity-cards {
+        grid-template-columns: 1fr 1fr;
+    }
+    .dash-header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: flex-start;
+    }
+
+    /* Course Screen */
+    #course-screen.active {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+    .sidebar, .main-content {
+        display: contents;
+    }
+    .sidebar-top {
+        order: 1;
+        background: var(--bg-raised);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        border-bottom: 1px solid var(--border);
+    }
+    .video-container {
+        order: 2;
+        background: var(--bg);
+        padding-bottom: 0.5rem;
+    }
+    .sidebar-progress {
+        order: 3;
+        background: var(--bg-raised);
+        border-bottom: 1px solid var(--border);
+        border-top: 1px solid var(--border);
+    }
+    .video-list {
+        order: 4;
+        background: var(--bg-raised);
+        flex: none;
+        max-height: 35vh;
+        overflow-y: auto;
+        border-bottom: 1px solid var(--border);
+    }
+    .notes-panel {
+        order: 5;
+        background: var(--bg);
+        margin-top: 1rem;
+        flex: none;
+        min-height: auto;
+    }
+}
+
+@media (max-width: 600px) {
+    /* Dashboard */
+    .activity-cards {
+        grid-template-columns: 1fr;
+    }
+    .course-grid {
+        grid-template-columns: 1fr;
+    }
+    .topbar {
+        padding: 0.75rem 1rem;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    .dashboard-body {
+        padding: 1.5rem 1rem;
+    }
+    .topbar-meta {
+        gap: 0.5rem;
+    }
+
+    /* Course Screen */
+    .notes-panel {
+        padding: 0 1rem 1rem;
+    }
+    .video-container {
+        padding: 1rem 1rem 0;
+    }
+    .completion-stats {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
 }

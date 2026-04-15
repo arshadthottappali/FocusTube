@@ -8,6 +8,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+    
+    <!-- Firebase SDK (v8 Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 </head>
 <body>
 
@@ -16,7 +21,6 @@
         <button class="landing-theme-toggle" id="landing-theme-toggle" title="Toggle theme">☀️</button>
         <div class="landing-wrapper">
             <div class="landing-left">
-                <span class="badge">100% Local · No Sign-Up · Free</span>
                 <h1>Learn without<br>distractions.</h1>
                 <p class="landing-desc">FocusTube converts any YouTube playlist into a structured course with progress tracking, timestamped notes, and zero distractions.</p>
                 
@@ -34,13 +38,22 @@
                     </div>
                     <div id="learner-panel" class="role-panel active">
                         <h3>Start your learning journey</h3>
-                        <p>All data stays in your browser. Nothing leaves your machine.</p>
+                        <p>Sync your progress seamlessly across your devices.</p>
+                        
+                        <button id="google-login-btn" class="btn-google">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google" class="google-icon">
+                            Continue with Google
+                        </button>
+                        
+                        <div class="auth-divider"><span>OR</span></div>
+                        
+                        <p style="text-align:center; font-size: 0.85rem; margin-top: 0; margin-bottom: 0.75rem; color: var(--text-tertiary);">Continue without login (Local Storage Only)</p>
                         <div class="form-stack">
                             <label for="username-input">Your name</label>
                             <input type="text" id="username-input" placeholder="e.g. Arun">
                             <label for="focus-limit-input">Focus Limit (Active Courses)</label>
                             <input type="number" id="focus-limit-input" value="5" min="1" max="50">
-                            <button id="save-name-btn" class="btn-primary">Continue →</button>
+                            <button id="save-name-btn" class="btn-primary" style="margin-top: 0.5rem;">Continue →</button>
                         </div>
                     </div>
                     <div id="creator-panel" class="role-panel">
@@ -67,15 +80,17 @@
                     <div class="profile-dropdown" id="profile-dropdown">
                         <div class="profile-dropdown-header">
                             <span class="profile-name" id="profile-name">User</span>
-                            <span class="profile-role">Learner</span>
+                            <span class="profile-role" id="profile-auth-status">Local Session</span>
                         </div>
                         <div class="profile-dropdown-body">
+                            <button class="dropdown-item sync-item" id="login-sync-btn" style="color: var(--accent);">☁️ Cloud Sync / Login</button>
                             <button class="dropdown-item" id="rename-user-btn">✏️ Change Name</button>
                             <button class="dropdown-item" id="set-support-btn">💖 Support Link</button>
                             <button class="dropdown-item" id="set-focus-btn">⚙️ Focus Limit</button>
                             <button class="dropdown-item" id="backup-data-btn">💾 Backup Data</button>
                             <button class="dropdown-item" id="restore-data-btn">📂 Restore Data</button>
                             <button class="dropdown-item" id="reset-data-btn">🗑️ Reset All Data</button>
+                            <button class="dropdown-item logout-item" id="logout-btn" style="display:none; color: #ef4444; border-top: 1px solid var(--border); margin-top: 0.5rem; padding-top: 0.75rem;">🚪 Sign Out</button>
                             <input type="file" id="restore-input" style="display:none;" accept=".json">
                         </div>
                     </div>

@@ -23,6 +23,126 @@ if (!savedData.maxCourses) savedData.maxCourses = 5;
 
 let courseData = { id: "", title: "", videos: [], videosProgress: {}, notes: {} };
 
+// --- Firebase Config Object ---
+// User must paste their Firebase config here
+const firebaseConfig = {
+  apiKey: "AIzaSyBJF3av9wODz8r_tu-xwdvZ1Y8tjcI0nnc",
+  authDomain: "focustube1-36ac7.firebaseapp.com",
+  projectId: "focustube1-36ac7",
+  storageBucket: "focustube1-36ac7.firebasestorage.app",
+  messagingSenderId: "378393453266",
+  appId: "1:378393453266:web:55e0892b397a163645430b",
+  measurementId: "G-H8BBPD0R4G"
+};
+
+try {
+    firebase.initializeApp(firebaseConfig);
+} catch (err) {
+    if (!/already exists/.test(err.message)) {
+        console.error('Firebase initialization error', err.stack);
+    }
+}
+
+const AuthService = {
+    loginWithGoogle: async () => {
+        if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "API_KEY") {
+            alert("Firebase is not configured yet! Please create a Firebase project and paste the config keys in main.js.");
+            return;
+        }
+        const provider = new firebase.auth.GoogleAuthProvider();
+        try {
+            await firebase.auth().signInWithPopup(provider);
+        } catch (error) {
+            console.error("Login failed", error);
+            alert("Login failed: " + error.message);
+        }
+    },
+    logout: async () => {
+        if (firebaseConfig.apiKey === "API_KEY") return;
+        try {
+            await firebase.auth().signOut();
+        } catch (error) {
+            console.error("Logout failed", error);
+        }
+    },
+    syncDataToCloud: async (uid) => {
+        if (firebaseConfig.apiKey === "API_KEY") return;
+        try {
+            await firebase.firestore().collection("users").doc(uid).set(savedData, { merge: true });
+        } catch (err) {
+            console.error("Error syncing to cloud:", err);
+        }
+    },
+    fetchDataFromCloud: async (uid) => {
+        if (firebaseConfig.apiKey === "API_KEY") return null;
+        try {
+            const doc = await firebase.firestore().collection("users").doc(uid).get();
+            if (doc.exists) return doc.data();
+        } catch (err) {
+            console.error("Error fetching from cloud:", err);
+        }
+        return null;
+    }
+};
+
+// Global Auth State Observer
+if (firebaseConfig.apiKey !== "API_KEY") {
+    firebase.auth().onAuthStateChanged(async (user) => {
+        if (user) {
+            const isFirstLogin = savedData.authLevel !== 'cloud';
+            savedData.authLevel = 'cloud';
+            savedData.userName = user.displayName || "User";
+            
+            const cloudData = await AuthService.fetchDataFromCloud(user.uid);
+            if (cloudData) {
+                // Merge courses
+                savedData.courses = { ...(savedData.courses || {}), ...(cloudData.courses || {}) };
+                savedData.totalStudyTime = Math.max(savedData.totalStudyTime || 0, cloudData.totalStudyTime || 0);
+            }
+            
+            await AuthService.syncDataToCloud(user.uid);
+            localStorage.setItem('playlearn_data', JSON.stringify(savedData));
+            
+            updateAuthUI(user);
+            
+            // If they just logged in from landing screen
+            if (isFirstLogin && landingScreen.classList.contains('active')) {
+                renderDashboard();
+            } else {
+                renderDashboard(); // refresh names
+            }
+        } else {
+            if (savedData.authLevel === 'cloud') {
+                savedData.authLevel = 'local';
+                updateAuthUI(null);
+            }
+            updateAuthUI(null);
+        }
+    });
+}
+
+function updateAuthUI(user) {
+    const loginSyncBtn = document.getElementById('login-sync-btn');
+    const logoutBtn    = document.getElementById('logout-btn');
+    const profileAuthStat = document.getElementById('profile-auth-status');
+    
+    if (user) {
+        if(loginSyncBtn) loginSyncBtn.style.display = 'none';
+        if(logoutBtn) logoutBtn.style.display = 'block';
+        if(profileAuthStat) {
+            profileAuthStat.innerText = 'Cloud Synced ✔️';
+            profileAuthStat.style.color = '#10b981'; // Green
+        }
+    } else {
+        if(loginSyncBtn) loginSyncBtn.style.display = 'block';
+        if(logoutBtn) logoutBtn.style.display = 'none';
+        if(profileAuthStat) {
+            profileAuthStat.innerText = 'Local Session';
+            profileAuthStat.style.color = 'var(--accent)';
+        }
+    }
+}
+
 // --- DOM ---
 const landingScreen    = document.getElementById('landing-screen');
 const welcomeScreen    = document.getElementById('welcome-screen');
@@ -57,8 +177,12 @@ const sidebarTitle     = document.getElementById('sidebar-course-title');
 const themeToggle      = document.getElementById('theme-toggle');
 const profileDropdown  = document.getElementById('profile-dropdown');
 const profileName      = document.getElementById('profile-name');
+const profileAuthStat  = document.getElementById('profile-auth-status');
 const renameUserBtn    = document.getElementById('rename-user-btn');
 const resetDataBtn     = document.getElementById('reset-data-btn');
+const loginSyncBtn     = document.getElementById('login-sync-btn');
+const logoutBtn        = document.getElementById('logout-btn');
+const googleLoginBtn   = document.getElementById('google-login-btn');
 const activityTime     = document.getElementById('activity-total-time');
 const activityCount    = document.getElementById('activity-course-count');
 const activityLast     = document.getElementById('activity-last-course');
@@ -97,7 +221,10 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('theme-toggle').textContent = savedTheme === 'light' ? '🌙 Dark' : '☀️ Light';
     document.getElementById('landing-theme-toggle').textContent = savedTheme === 'light' ? '🌙' : '☀️';
 
-    if (!savedData.userName) {
+    updateAuthUI(null);
+
+    // Initial Screen Choice
+    if (!savedData.userName && savedData.authLevel !== 'cloud') {
         show(landingScreen);
     } else {
         renderDashboard();
@@ -306,6 +433,14 @@ creatorTab.addEventListener('click', () => {
 
 saveNameBtn.addEventListener('click', handleSaveName);
 usernameInput.addEventListener('keypress', e => { if (e.key === 'Enter') handleSaveName(); });
+
+if (googleLoginBtn) googleLoginBtn.addEventListener('click', AuthService.loginWithGoogle);
+if (loginSyncBtn) loginSyncBtn.addEventListener('click', AuthService.loginWithGoogle);
+if (logoutBtn) {
+    logoutBtn.addEventListener('click', () => {
+        AuthService.logout().then(() => location.reload());
+    });
+}
 
 function handleSaveName() {
     const name = usernameInput.value.trim();
@@ -918,6 +1053,12 @@ function syncCurrentCourseToStorage() {
 }
 function saveToLocalStorage() {
     localStorage.setItem('playlearn_data', JSON.stringify(savedData));
+    if (savedData.authLevel === 'cloud' && firebaseConfig.apiKey !== "API_KEY") {
+        const user = firebase.auth().currentUser;
+        if (user) {
+            AuthService.syncDataToCloud(user.uid);
+        }
+    }
 }
 
 // ========================================
