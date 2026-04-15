@@ -88,34 +88,49 @@ const AuthService = {
 
 // Global Auth State Observer
 if (firebaseConfig.apiKey !== "API_KEY") {
+    // Check for redirect result (helps catch errors specifically after redirect)
+    firebase.auth().getRedirectResult()
+        .then((result) => {
+            if (result.user) console.log("Successfully logged in via redirect");
+        })
+        .catch((error) => {
+            console.error("Redirect login error:", error);
+            alert("Login error: " + error.message);
+        });
+
     firebase.auth().onAuthStateChanged(async (user) => {
         if (user) {
+            console.log("Auth state changed: User is logged in", user.uid);
             const isFirstLogin = savedData.authLevel !== 'cloud';
             savedData.authLevel = 'cloud';
             savedData.userName = user.displayName || "User";
             
-            const cloudData = await AuthService.fetchDataFromCloud(user.uid);
-            if (cloudData) {
-                // Merge courses
-                savedData.courses = { ...(savedData.courses || {}), ...(cloudData.courses || {}) };
-                savedData.totalStudyTime = Math.max(savedData.totalStudyTime || 0, cloudData.totalStudyTime || 0);
+            try {
+                const cloudData = await AuthService.fetchDataFromCloud(user.uid);
+                if (cloudData) {
+                    console.log("Found cloud data, merging...");
+                    // Merge courses
+                    savedData.courses = { ...(savedData.courses || {}), ...(cloudData.courses || {}) };
+                    savedData.totalStudyTime = Math.max(savedData.totalStudyTime || 0, cloudData.totalStudyTime || 0);
+                }
+            } catch (err) {
+                console.warn("Cloud fetch failed (likely security rules), continuing with local data.");
             }
             
-            await AuthService.syncDataToCloud(user.uid);
+            try {
+                await AuthService.syncDataToCloud(user.uid);
+            } catch (err) {
+                console.warn("Cloud sync failed (likely security rules).");
+            }
+
             localStorage.setItem('playlearn_data', JSON.stringify(savedData));
-            
             updateAuthUI(user);
             
-            // If they just logged in from landing screen
-            if (isFirstLogin && landingScreen.classList.contains('active')) {
-                renderDashboard();
-            } else {
-                renderDashboard(); // refresh names
-            }
+            // Critical: Always render dashboard if we have a user
+            renderDashboard();
         } else {
             if (savedData.authLevel === 'cloud') {
                 savedData.authLevel = 'local';
-                updateAuthUI(null);
             }
             updateAuthUI(null);
         }
