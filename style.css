@@ -97,15 +97,28 @@ body {
 .screen {
     display: none !important;
     opacity: 0;
+    transition: opacity 0.3s ease;
+    width: 100%;
 }
 .screen.active {
-    display: flex !important;
+    display: block;
     opacity: 1;
-    animation: screenIn 0.3s ease;
 }
-@keyframes screenIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
+
+/* Spinner */
+.spinner {
+    width: 48px;
+    height: 48px;
+    border: 3px solid var(--accent-subtle);
+    border-bottom-color: var(--accent);
+    border-radius: 50%;
+    display: inline-block;
+    box-sizing: border-box;
+    animation: rotation 1s linear infinite;
+}
+@keyframes rotation {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 /* ========================================

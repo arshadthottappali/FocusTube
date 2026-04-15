@@ -98,10 +98,11 @@ if (firebaseConfig.apiKey !== "API_KEY") {
             alert("Login error: " + error.message);
         });
 
+    let isFirstAuthStateCheck = true;
+
     firebase.auth().onAuthStateChanged(async (user) => {
         if (user) {
-            console.log("Auth state changed: User is logged in", user.uid);
-            const isFirstLogin = savedData.authLevel !== 'cloud';
+            console.log("Auth state confirmed: User is logged in", user.uid);
             savedData.authLevel = 'cloud';
             savedData.userName = user.displayName || "User";
             
@@ -109,31 +110,31 @@ if (firebaseConfig.apiKey !== "API_KEY") {
                 const cloudData = await AuthService.fetchDataFromCloud(user.uid);
                 if (cloudData) {
                     console.log("Found cloud data, merging...");
-                    // Merge courses
                     savedData.courses = { ...(savedData.courses || {}), ...(cloudData.courses || {}) };
                     savedData.totalStudyTime = Math.max(savedData.totalStudyTime || 0, cloudData.totalStudyTime || 0);
                 }
-            } catch (err) {
-                console.warn("Cloud fetch failed (likely security rules), continuing with local data.");
-            }
-            
-            try {
-                await AuthService.syncDataToCloud(user.uid);
-            } catch (err) {
-                console.warn("Cloud sync failed (likely security rules).");
-            }
+            } catch (err) { console.warn("Cloud sync warning:", err); }
 
             localStorage.setItem('playlearn_data', JSON.stringify(savedData));
             updateAuthUI(user);
-            
-            // Critical: Always render dashboard if we have a user
             renderDashboard();
         } else {
+            console.log("Auth state confirmed: No user session");
             if (savedData.authLevel === 'cloud') {
                 savedData.authLevel = 'local';
             }
             updateAuthUI(null);
+            
+            // If we are finished checking and no one is logged in, show either landing or dashboard
+            if (isFirstAuthStateCheck) {
+                if (!savedData.userName) {
+                    show(landingScreen);
+                } else {
+                    renderDashboard();
+                }
+            }
         }
+        isFirstAuthStateCheck = false;
     });
 }
 
@@ -160,6 +161,7 @@ function updateAuthUI(user) {
 }
 
 // --- DOM ---
+const loadingScreen    = document.getElementById('loading-screen');
 const landingScreen    = document.getElementById('landing-screen');
 const welcomeScreen    = document.getElementById('welcome-screen');
 const courseScreen      = document.getElementById('course-screen');
@@ -239,16 +241,13 @@ window.addEventListener('DOMContentLoaded', () => {
 
     updateAuthUI(null);
 
-    // Initial Screen Choice
-    if (!savedData.userName && savedData.authLevel !== 'cloud') {
-        show(landingScreen);
-    } else {
-        renderDashboard();
-    }
+    // Initialization Guard:
+    // We do NOT show a screen here. We wait for Firebase to tell us the status.
+    console.log("App loaded. Waiting for Firebase Auth initialization...");
 });
 
 function show(screen) {
-    [landingScreen, welcomeScreen, courseScreen].forEach(s => s.classList.remove('active'));
+    [loadingScreen, landingScreen, welcomeScreen, courseScreen].forEach(s => s.classList.remove('active'));
     screen.classList.add('active');
 }
 
