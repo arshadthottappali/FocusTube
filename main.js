@@ -99,23 +99,35 @@ if (firebaseConfig.apiKey !== "API_KEY") {
         if (user) {
             console.log("Auth state confirmed: User is logged in", user.uid);
             savedData.authLevel = 'cloud';
-            // Only use Google's name if no custom name is set
-            if (!savedData.userName) {
-                savedData.userName = user.displayName || "User";
-            }
             
             try {
                 const cloudData = await AuthService.fetchDataFromCloud(user.uid);
                 if (cloudData) {
                     console.log("Found cloud data, merging...");
-                    savedData.courses = { ...(savedData.courses || {}), ...(cloudData.courses || {}) };
+                    // Use cloud name only if we don't have a local name
+                    if (!savedData.userName && cloudData.userName) {
+                        savedData.userName = cloudData.userName;
+                    }
+                    // LOCAL courses win over cloud (local is more recent)
+                    // Cloud-only courses are still added
+                    savedData.courses = { ...(cloudData.courses || {}), ...(savedData.courses || {}) };
                     savedData.totalStudyTime = Math.max(savedData.totalStudyTime || 0, cloudData.totalStudyTime || 0);
                 }
             } catch (err) { console.warn("Cloud sync warning:", err); }
 
+            // Fallback to Google display name if still no name
+            if (!savedData.userName) {
+                savedData.userName = user.displayName || "User";
+            }
+
             localStorage.setItem('playlearn_data', JSON.stringify(savedData));
             updateAuthUI(user);
-            renderDashboard();
+            
+            // Only navigate to dashboard on first auth check (login)
+            // Don't re-render on token refreshes to avoid disrupting user
+            if (isFirstAuthStateCheck) {
+                renderDashboard();
+            }
         } else {
             console.log("Auth state confirmed: No user session");
             if (savedData.authLevel === 'cloud') {
