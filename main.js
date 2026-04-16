@@ -99,7 +99,10 @@ if (firebaseConfig.apiKey !== "API_KEY") {
         if (user) {
             console.log("Auth state confirmed: User is logged in", user.uid);
             savedData.authLevel = 'cloud';
-            savedData.userName = user.displayName || savedData.userName || "User";
+            // Only use Google's name if no custom name is set
+            if (!savedData.userName) {
+                savedData.userName = user.displayName || "User";
+            }
             
             try {
                 const cloudData = await AuthService.fetchDataFromCloud(user.uid);
@@ -189,7 +192,6 @@ const googleLoginBtn   = document.getElementById('google-login-btn');
 const activityTime     = document.getElementById('activity-total-time');
 const activityCount    = document.getElementById('activity-course-count');
 const activityLast     = document.getElementById('activity-last-course');
-const setSupportBtn    = document.getElementById('set-support-btn');
 const setFocusBtn      = document.getElementById('set-focus-btn');
 const backupDataBtn    = document.getElementById('backup-data-btn');
 const restoreDataBtn   = document.getElementById('restore-data-btn');
@@ -297,34 +299,6 @@ renameUserBtn.addEventListener('click', () => {
     inp.addEventListener('keypress', ev => { if (ev.key === 'Enter') commit(); });
 });
 
-setSupportBtn.addEventListener('click', () => {
-    // Replace button with an input field
-    const container = setSupportBtn.parentElement;
-    setSupportBtn.style.display = 'none';
-    const inp = document.createElement('input');
-    inp.type = 'text';
-    inp.placeholder = 'Paste PayPal/Ko-fi URL...';
-    inp.value = savedData.supportLink || '';
-    inp.className = 'inline-edit-input';
-    inp.style.margin = '0 0.5rem';
-    container.insertBefore(inp, setSupportBtn.nextSibling);
-    inp.focus();
-    inp.select();
-    
-    const commit = () => {
-        const v = inp.value.trim();
-        if (v) {
-            savedData.supportLink = v;
-            saveToLocalStorage();
-        }
-        inp.remove();
-        setSupportBtn.style.display = '';
-        profileDropdown.classList.remove('open');
-        renderDashboard();
-    };
-    inp.addEventListener('blur', commit);
-    inp.addEventListener('keypress', ev => { if (ev.key === 'Enter') commit(); });
-});
 
 setFocusBtn.addEventListener('click', () => {
     // Replace button with an input field
@@ -440,7 +414,11 @@ if (googleLoginBtn) googleLoginBtn.addEventListener('click', AuthService.loginWi
 if (loginSyncBtn) loginSyncBtn.addEventListener('click', AuthService.loginWithGoogle);
 if (logoutBtn) {
     logoutBtn.addEventListener('click', () => {
-        AuthService.logout().then(() => location.reload());
+        AuthService.logout().then(() => {
+            // Clear local data — it's safe in the cloud
+            localStorage.removeItem('playlearn_data');
+            location.reload(); // Will show landing page since userName is gone
+        });
     });
 }
 
@@ -479,6 +457,7 @@ backBtn.addEventListener('click', () => {
     if (player && typeof player.pauseVideo === 'function') player.pauseVideo();
     stopProgressTracker();
     saveCurrentProgress();
+    saveToLocalStorage();
     renderDashboard();
 });
 
@@ -495,14 +474,9 @@ function renderDashboard() {
     userAvatar.innerText = savedData.userName.charAt(0).toUpperCase();
     profileName.innerText = savedData.userName;
 
-    // Support Link Footer
-    if (savedData.supportLink) {
-        footerSupportLink.href = savedData.supportLink;
-        footerSupportLink.innerHTML = `💖 Support the Developer`;
-    } else {
-        footerSupportLink.href = '#';
-        footerSupportLink.innerHTML = `☕ Tip the Creator`;
-    }
+    // Support Link Footer (always show hardcoded developer link)
+    footerSupportLink.href = savedData.supportLink;
+    footerSupportLink.innerHTML = `💖 Support the Developer`;
 
     // Topbar stat
     totalTimeStat.innerText = formatHoursMins(savedData.totalStudyTime) + ' studied';
@@ -662,6 +636,7 @@ function resumeCourse(playlistId) {
 
 function loadCourseUI(playlistId, optionalName) {
     currentPlaylistId = playlistId;
+    lastSoughtId = ""; // Reset so seek-to-saved-time works on re-entry
 
     if (savedData.courses[playlistId]) {
         courseData = savedData.courses[playlistId];
@@ -1111,5 +1086,6 @@ function formatHoursMins(s) {
     const h = Math.floor(s / 3600);
     const m = Math.floor((s % 3600) / 60);
     if (h > 0) return `${h}h ${m}m`;
-    return `${m}m`;
+    if (m > 0) return `${m}m`;
+    return `${s}s`;
 }

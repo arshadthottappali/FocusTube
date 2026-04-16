@@ -674,13 +674,14 @@ textarea { resize: none; height: 56px; }
     border-bottom: 1px solid var(--border);
 }
 .btn-back {
-    width: 32px;
-    height: 32px;
-    border-radius: var(--radius-xs);
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--text-secondary);
-    font-size: 1rem;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-sm);
+    background: var(--accent);
+    border: none;
+    color: white;
+    font-size: 1.1rem;
+    font-weight: 700;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -688,7 +689,7 @@ textarea { resize: none; height: 56px; }
     transition: all 0.15s ease;
     flex-shrink: 0;
 }
-.btn-back:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+.btn-back:hover { background: var(--accent-hover); transform: translateY(-1px); box-shadow: 0 2px 8px rgba(139,92,246,0.4); }
 
 .sidebar-course-info { overflow: hidden; }
 .sidebar-label {
