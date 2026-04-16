@@ -407,7 +407,8 @@ setFocusBtn.addEventListener('click', () => {
 
 // Reset — two-click safety
 let resetPending = false;
-resetDataBtn.addEventListener('click', () => {
+resetDataBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
     if (!resetPending) {
         resetPending = true;
         resetDataBtn.textContent = '⚠️ Click again to confirm';
@@ -418,6 +419,9 @@ resetDataBtn.addEventListener('click', () => {
             resetDataBtn.style.color = '';
         }, 3000);
     } else {
+        stopProgressTracker(); // Stop intervals to prevent race condition re-saves
+        if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
+        savedData = {}; // Clear in-memory state
         localStorage.removeItem('playlearn_data');
         localStorage.removeItem('playlearn_theme');
         location.reload();
@@ -425,7 +429,8 @@ resetDataBtn.addEventListener('click', () => {
 });
 
 // Backup & Restore
-backupDataBtn.addEventListener('click', () => {
+backupDataBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
     const dataStr = JSON.stringify(savedData, null, 2);
     const blob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -470,16 +475,28 @@ restoreInput.addEventListener('change', (e) => {
 //  LANDING PAGE
 // ========================================
 learnerTab.addEventListener('click', () => {
-    learnerTab.classList.add('active');
-    creatorTab.classList.remove('active');
-    learnerPanel.classList.add('active');
-    creatorPanel.classList.remove('active');
+    // If the user is already logged in as a learner, take them back to the dashboard immediately
+    if (savedData.userName) {
+        renderDashboard();
+    } else {
+        learnerTab.classList.add('active');
+        creatorTab.classList.remove('active');
+        learnerPanel.classList.add('active');
+        creatorPanel.classList.remove('active');
+    }
 });
 creatorTab.addEventListener('click', () => {
     creatorTab.classList.add('active');
     learnerTab.classList.remove('active');
     creatorPanel.classList.add('active');
     learnerPanel.classList.remove('active');
+});
+
+// Navigate from Dashboard to Creator
+document.getElementById('open-creator-dashboard-btn').addEventListener('click', () => {
+    profileDropdown.classList.remove('open');
+    show(landingScreen);
+    creatorTab.click();
 });
 
 saveNameBtn.addEventListener('click', handleSaveName);
@@ -644,6 +661,13 @@ async function updateCreatorTab() {
         // Set user name
         const nameEl = document.getElementById('creator-user-name');
         if (nameEl) nameEl.textContent = user.displayName || 'Creator';
+
+        // Show 'Back to Learning' button if user has a local session active
+        const backBtn = document.getElementById('creator-back-to-learner-btn');
+        if (backBtn) {
+            backBtn.style.display = savedData.userName ? 'block' : 'none';
+            backBtn.onclick = () => renderDashboard();
+        }
 
         // Check for existing course
         try {
