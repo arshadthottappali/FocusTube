@@ -242,10 +242,47 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-function show(screen) {
+function show(screen, pushHistory = true) {
     [landingScreen, welcomeScreen, courseScreen].forEach(s => s.classList.remove('active'));
     screen.classList.add('active');
+    
+    // Push state so browser back button works within the app
+    const screenName = screen === landingScreen ? 'landing' 
+                     : screen === courseScreen ? 'course' 
+                     : 'dashboard';
+    if (pushHistory) {
+        history.pushState({ screen: screenName }, '', '');
+    }
 }
+
+// Handle browser back button
+window.addEventListener('popstate', (e) => {
+    if (e.state && e.state.screen) {
+        if (e.state.screen === 'dashboard') {
+            if (player && typeof player.pauseVideo === 'function') player.pauseVideo();
+            stopProgressTracker();
+            saveCurrentProgress();
+            saveToLocalStorage();
+            show(welcomeScreen, false);
+            renderDashboard();
+        } else if (e.state.screen === 'landing') {
+            show(landingScreen, false);
+        } else if (e.state.screen === 'course') {
+            show(courseScreen, false);
+        }
+    } else {
+        // No state = initial page, show dashboard or landing
+        if (savedData.userName) {
+            show(welcomeScreen, false);
+            renderDashboard();
+        } else {
+            show(landingScreen, false);
+        }
+    }
+});
+
+// Replace initial history state so back doesn't leave the app
+history.replaceState({ screen: 'initial' }, '', '');
 
 // ========================================
 //  THEME TOGGLE (shared by landing + dashboard)
