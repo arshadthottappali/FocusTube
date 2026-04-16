@@ -16,8 +16,8 @@ if (!savedData.userName) savedData.userName = "";
 if (!savedData.courses) savedData.courses = {};
 if (!savedData.totalStudyTime) savedData.totalStudyTime = 0;
 if (!savedData.lastAccessedCourseTitle) savedData.lastAccessedCourseTitle = "";
-if (!savedData.supportLink || savedData.supportLink.includes('paypal.me')) {
-    savedData.supportLink = "https://ko-fi.com/muhammedarshadthottappali";
+if (!savedData.supportLink || savedData.supportLink.includes('paypal.me') || savedData.supportLink.includes('muhammedarshadthottappali')) {
+    savedData.supportLink = "https://ko-fi.com/focustube";
 }
 if (!savedData.maxCourses) savedData.maxCourses = 5;
 
@@ -74,7 +74,7 @@ const AuthService = {
     syncDataToCloud: async (uid) => {
         if (firebaseConfig.apiKey === "API_KEY") return;
         try {
-            await firebase.firestore().collection("users").doc(uid).set(savedData, { merge: true });
+            await firebase.firestore().collection("users").doc(uid).set(savedData);
         } catch (err) {
             console.error("Error syncing to cloud:", err);
         }
