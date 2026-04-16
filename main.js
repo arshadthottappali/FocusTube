@@ -122,12 +122,7 @@ if (firebaseConfig.apiKey !== "API_KEY") {
 
             localStorage.setItem('playlearn_data', JSON.stringify(savedData));
             updateAuthUI(user);
-            
-            // Only navigate to dashboard on first auth check (login)
-            // Don't re-render on token refreshes to avoid disrupting user
-            if (isFirstAuthStateCheck) {
-                renderDashboard();
-            }
+            renderDashboard();
         } else {
             console.log("Auth state confirmed: No user session");
             if (savedData.authLevel === 'cloud') {
