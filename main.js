@@ -104,7 +104,7 @@ if (firebaseConfig.apiKey !== "API_KEY") {
         if (user) {
             console.log("Auth state confirmed: User is logged in", user.uid);
             savedData.authLevel = 'cloud';
-            savedData.userName = user.displayName || "User";
+            savedData.userName = user.displayName || savedData.userName || "User";
             
             try {
                 const cloudData = await AuthService.fetchDataFromCloud(user.uid);
@@ -124,15 +124,6 @@ if (firebaseConfig.apiKey !== "API_KEY") {
                 savedData.authLevel = 'local';
             }
             updateAuthUI(null);
-            
-            // If we are finished checking and no one is logged in, show either landing or dashboard
-            if (isFirstAuthStateCheck) {
-                if (!savedData.userName) {
-                    show(landingScreen);
-                } else {
-                    renderDashboard();
-                }
-            }
         }
         isFirstAuthStateCheck = false;
     });
@@ -161,7 +152,6 @@ function updateAuthUI(user) {
 }
 
 // --- DOM ---
-const loadingScreen    = document.getElementById('loading-screen');
 const landingScreen    = document.getElementById('landing-screen');
 const welcomeScreen    = document.getElementById('welcome-screen');
 const courseScreen      = document.getElementById('course-screen');
@@ -235,19 +225,21 @@ window.addEventListener('DOMContentLoaded', () => {
     // Restore theme
     const savedTheme = localStorage.getItem('playlearn_theme') || 'light';
     document.documentElement.setAttribute('data-theme', savedTheme);
-    // UI updates happen after toggleTheme function is defined, so do it inline:
     document.getElementById('theme-toggle').textContent = savedTheme === 'light' ? '🌙 Dark' : '☀️ Light';
     document.getElementById('landing-theme-toggle').textContent = savedTheme === 'light' ? '🌙' : '☀️';
 
     updateAuthUI(null);
 
-    // Initialization Guard:
-    // We do NOT show a screen here. We wait for Firebase to tell us the status.
-    console.log("App loaded. Waiting for Firebase Auth initialization...");
+    // Show the correct screen immediately from localStorage (don't block on Firebase)
+    if (!savedData.userName) {
+        show(landingScreen);
+    } else {
+        renderDashboard();
+    }
 });
 
 function show(screen) {
-    [loadingScreen, landingScreen, welcomeScreen, courseScreen].forEach(s => s.classList.remove('active'));
+    [landingScreen, welcomeScreen, courseScreen].forEach(s => s.classList.remove('active'));
     screen.classList.add('active');
 }
 

@@ -95,14 +95,17 @@ body {
    Screens
    ======================================== */
 .screen {
-    display: none;
+    display: none !important;
     opacity: 0;
-    transition: opacity 0.3s ease;
-    width: 100%;
 }
 .screen.active {
-    display: block;
+    display: flex !important;
     opacity: 1;
+    animation: screenIn 0.3s ease;
+}
+@keyframes screenIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 /* Spinner */
