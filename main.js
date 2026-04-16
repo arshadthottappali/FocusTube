@@ -51,11 +51,16 @@ const AuthService = {
         }
         const provider = new firebase.auth.GoogleAuthProvider();
         try {
-            // Using redirect prevents aggressive browser popup blockers on mobile/desktop
-            await firebase.auth().signInWithRedirect(provider);
+            const result = await firebase.auth().signInWithPopup(provider);
+            if (result.user) {
+                console.log("Google login successful:", result.user.displayName);
+                // onAuthStateChanged will handle the rest (merge data, render dashboard)
+            }
         } catch (error) {
             console.error("Login failed", error);
-            alert("Login failed: " + error.message);
+            if (error.code !== 'auth/popup-closed-by-user') {
+                alert("Login failed: " + error.message);
+            }
         }
     },
     logout: async () => {
@@ -88,16 +93,6 @@ const AuthService = {
 
 // Global Auth State Observer
 if (firebaseConfig.apiKey !== "API_KEY") {
-    // Check for redirect result (helps catch errors specifically after redirect)
-    firebase.auth().getRedirectResult()
-        .then((result) => {
-            if (result.user) console.log("Successfully logged in via redirect");
-        })
-        .catch((error) => {
-            console.error("Redirect login error:", error);
-            alert("Login error: " + error.message);
-        });
-
     let isFirstAuthStateCheck = true;
 
     firebase.auth().onAuthStateChanged(async (user) => {
