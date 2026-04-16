@@ -1096,7 +1096,7 @@ function syncVideoIndex() {
     }
 }
 
-function buildCourseData(videoIdsList) {
+async function buildCourseData(videoIdsList) {
     if (courseData.videos && courseData.videos.length > 0) return;
     courseData.videos = videoIdsList.map((id, i) => ({ id, title: `Video ${i + 1}` }));
     currentVideoIndex = 0;
