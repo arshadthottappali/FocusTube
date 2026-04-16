@@ -674,8 +674,12 @@ async function initCreatorDashboard() {
     // Set avatar & name
     const creatorAvatar = document.getElementById('creator-avatar');
     const creatorDropdownName = document.getElementById('creator-dropdown-name');
-    if (creatorAvatar && user.displayName) creatorAvatar.textContent = user.displayName.charAt(0).toUpperCase();
-    if (creatorDropdownName && user.displayName) creatorDropdownName.textContent = user.displayName;
+    const creatorGreeting = document.getElementById('creator-greeting');
+    
+    const userName = user.displayName || 'Creator';
+    if (creatorAvatar) creatorAvatar.textContent = userName.charAt(0).toUpperCase();
+    if (creatorDropdownName) creatorDropdownName.textContent = userName;
+    if (creatorGreeting) creatorGreeting.textContent = `Welcome, ${userName.split(' ')[0]}`;
 
     // Check for existing course
     try {
@@ -684,27 +688,47 @@ async function initCreatorDashboard() {
         
         const existingEl = document.getElementById('creator-existing-course');
         const newFormEl = document.getElementById('creator-new-form');
+        const topNewBtn = document.getElementById('creator-top-new-btn');
+        const contentTitle = document.getElementById('creator-content-title');
 
         if (!snapshot.empty) {
             const doc = snapshot.docs[0];
             const data = doc.data();
+            const shareUrl = `${window.location.origin}${window.location.pathname}?course=${doc.id}`;
             
+            // Update Main Card
             document.getElementById('creator-existing-title').textContent = data.title;
-            document.getElementById('creator-existing-access').textContent = `${data.accessCount || 0} students accessed`;
+            document.getElementById('creator-existing-access-badge').textContent = `👥 ${data.accessCount || 0} Students`;
             
             const pwBadge = document.getElementById('creator-existing-password-badge');
-            pwBadge.textContent = data.password ? '🔒 Protected' : '🌐 Open';
-            pwBadge.className = data.password ? 'badge-protected' : '';
+            pwBadge.textContent = data.password ? '🔒 Protected Access' : '🌐 Open Access';
+            
+            const shareInput = document.getElementById('share-link-output-existing');
+            if (shareInput) shareInput.value = shareUrl;
+
+            // Update Stats Bar
+            document.getElementById('creator-stat-students').textContent = data.accessCount || 0;
+            document.getElementById('creator-stat-courses').textContent = "1/1";
+            document.getElementById('creator-stat-privacy').textContent = data.password ? "Protected" : "Public";
 
             existingEl.style.display = 'block';
             newFormEl.style.display = 'none';
+            if (topNewBtn) topNewBtn.style.display = 'none';
+            if (contentTitle) contentTitle.textContent = "Your Published Course";
 
             // Store for copy/delete
             existingEl.dataset.courseId = doc.id;
-            existingEl.dataset.courseUrl = `${window.location.origin}${window.location.pathname}?course=${doc.id}`;
+            existingEl.dataset.courseUrl = shareUrl;
         } else {
+            // Update Stats for empty state
+            document.getElementById('creator-stat-students').textContent = "0";
+            document.getElementById('creator-stat-courses').textContent = "0/1";
+            document.getElementById('creator-stat-privacy').textContent = "Ready";
+
             existingEl.style.display = 'none';
             newFormEl.style.display = 'block';
+            if (topNewBtn) topNewBtn.style.display = 'none';
+            if (contentTitle) contentTitle.textContent = "Publish Content";
         }
     } catch (e) {
         console.warn("Could not check existing courses:", e);
@@ -762,8 +786,9 @@ if (creatorCopyExistingBtn) {
     creatorCopyExistingBtn.addEventListener('click', () => {
         const url = document.getElementById('creator-existing-course').dataset.courseUrl;
         navigator.clipboard.writeText(url).then(() => {
-            creatorCopyExistingBtn.textContent = '✅ Copied!';
-            setTimeout(() => { creatorCopyExistingBtn.textContent = '🔗 Copy'; }, 2000);
+            const originalText = creatorCopyExistingBtn.textContent;
+            creatorCopyExistingBtn.textContent = '✅ Link Copied!';
+            setTimeout(() => { creatorCopyExistingBtn.textContent = originalText; }, 2000);
         });
     });
 }
