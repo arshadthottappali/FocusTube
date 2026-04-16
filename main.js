@@ -122,6 +122,7 @@ if (firebaseConfig.apiKey !== "API_KEY") {
 
             localStorage.setItem('playlearn_data', JSON.stringify(savedData));
             updateAuthUI(user);
+            updateCreatorTab();
             renderDashboard();
         } else {
             console.log("Auth state confirmed: No user session");
@@ -225,7 +226,7 @@ function onYouTubeIframeAPIReady() {
 // ========================================
 //  INIT
 // ========================================
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
     // Restore theme
     const savedTheme = localStorage.getItem('playlearn_theme') || 'light';
     document.documentElement.setAttribute('data-theme', savedTheme);
@@ -234,11 +235,16 @@ window.addEventListener('DOMContentLoaded', () => {
 
     updateAuthUI(null);
 
-    // Show the correct screen immediately from localStorage (don't block on Firebase)
-    if (!savedData.userName) {
-        show(landingScreen);
-    } else {
-        renderDashboard();
+    // Check for shared course link first (?course=XXXXX)
+    const hasSharedCourse = await checkForSharedCourse();
+    
+    // Show the correct screen if no shared course link
+    if (!hasSharedCourse) {
+        if (!savedData.userName) {
+            show(landingScreen);
+        } else {
+            renderDashboard();
+        }
     }
 });
 
@@ -478,6 +484,244 @@ function handleSaveName() {
 
     saveToLocalStorage();
     renderDashboard();
+}
+
+// ========================================
+//  CREATOR MODE
+// ========================================
+const CreatorService = {
+    extractPlaylistId: (url) => {
+        const match = url.match(/[?&]list=([a-zA-Z0-9_-]+)/);
+        return match ? match[1] : null;
+    },
+
+    generateCourseId: () => {
+        return 'ft_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+    },
+
+    createCourse: async (playlistUrl, title, password) => {
+        const playlistId = CreatorService.extractPlaylistId(playlistUrl);
+        if (!playlistId) throw new Error("Invalid playlist URL. Please paste a valid YouTube playlist link.");
+        if (!title.trim()) throw new Error("Please enter a course title.");
+
+        const user = firebase.auth().currentUser;
+        if (!user) throw new Error("You must be signed in to create a course.");
+
+        // Fetch video list from the playlist
+        const videos = await CreatorService.fetchPlaylistVideos(playlistId);
+        if (!videos.length) throw new Error("Could not load any videos from this playlist.");
+
+        const courseId = CreatorService.generateCourseId();
+        const courseDoc = {
+            title: title.trim(),
+            playlistId: playlistId,
+            videos: videos,
+            password: password || "",
+            creatorUid: user.uid,
+            creatorName: user.displayName || "Anonymous Creator",
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            accessCount: 0
+        };
+
+        await firebase.firestore().collection("shared_courses").doc(courseId).set(courseDoc);
+        return courseId;
+    },
+
+    fetchPlaylistVideos: async (playlistId) => {
+        // Use noembed to get playlist info — fetch first video to verify playlist exists
+        // Then build video list from YouTube embed API
+        const videos = [];
+        try {
+            // Try loading the playlist via a temporary hidden player
+            const response = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/playlist?list=${playlistId}&format=json`);
+            if (!response.ok) throw new Error("Playlist not found");
+        } catch (e) {
+            // Still try to proceed — oembed might not support playlists directly
+        }
+        
+        // We'll let the student's player handle the actual video list
+        // Save the playlistId so the player can load it
+        return [{ id: playlistId, title: "Playlist" }];
+    },
+
+    loadSharedCourse: async (courseId) => {
+        const doc = await firebase.firestore().collection("shared_courses").doc(courseId).get();
+        if (!doc.exists) return null;
+        return doc.data();
+    },
+
+    incrementAccess: async (courseId) => {
+        try {
+            await firebase.firestore().collection("shared_courses").doc(courseId).update({
+                accessCount: firebase.firestore.FieldValue.increment(1)
+            });
+        } catch (e) { /* ignore */ }
+    }
+};
+
+// --- Creator Form Elements ---
+const creatorGoogleBtn = document.getElementById('creator-google-btn');
+const creatorLoginSection = document.getElementById('creator-login-section');
+const creatorFormSection = document.getElementById('creator-form-section');
+const creatorPlaylistInput = document.getElementById('creator-playlist-input');
+const creatorTitleInput = document.getElementById('creator-title-input');
+const creatorPasswordInput = document.getElementById('creator-password-input');
+const createCourseBtn = document.getElementById('create-course-btn');
+const creatorResult = document.getElementById('creator-result');
+const shareLinkOutput = document.getElementById('share-link-output');
+const copyLinkBtn = document.getElementById('copy-link-btn');
+
+// --- Shared Course Modal Elements ---
+const sharedCourseModal = document.getElementById('shared-course-modal');
+const sharedCourseTitle = document.getElementById('shared-course-title');
+const sharedCourseMeta = document.getElementById('shared-course-meta');
+const sharedPasswordSection = document.getElementById('shared-password-section');
+const sharedPasswordInput = document.getElementById('shared-password-input');
+const sharedErrorMsg = document.getElementById('shared-error-msg');
+const sharedAccessBtn = document.getElementById('shared-access-btn');
+const sharedCancelBtn = document.getElementById('shared-cancel-btn');
+
+let pendingSharedCourse = null; // stores loaded shared course data
+let pendingSharedCourseId = null;
+
+// Creator: Google login for creator tab
+if (creatorGoogleBtn) {
+    creatorGoogleBtn.addEventListener('click', async () => {
+        await AuthService.loginWithGoogle();
+        // After login, show the form
+        const user = firebase.auth().currentUser;
+        if (user) {
+            creatorLoginSection.style.display = 'none';
+            creatorFormSection.style.display = 'block';
+        }
+    });
+}
+
+// Update creator tab when auth changes
+function updateCreatorTab() {
+    const user = firebase.auth().currentUser;
+    if (user && creatorLoginSection && creatorFormSection) {
+        creatorLoginSection.style.display = 'none';
+        creatorFormSection.style.display = 'block';
+    }
+}
+
+// Creator: Create course button
+if (createCourseBtn) {
+    createCourseBtn.addEventListener('click', async () => {
+        const url = creatorPlaylistInput.value.trim();
+        const title = creatorTitleInput.value.trim();
+        const password = creatorPasswordInput.value.trim();
+
+        createCourseBtn.disabled = true;
+        createCourseBtn.textContent = 'Creating...';
+
+        try {
+            const courseId = await CreatorService.createCourse(url, title, password);
+            const shareUrl = `${window.location.origin}${window.location.pathname}?course=${courseId}`;
+            shareLinkOutput.value = shareUrl;
+            creatorResult.style.display = 'block';
+        } catch (err) {
+            alert(err.message);
+        } finally {
+            createCourseBtn.disabled = false;
+            createCourseBtn.textContent = 'Create & Get Link 🔗';
+        }
+    });
+}
+
+// Creator: Copy link
+if (copyLinkBtn) {
+    copyLinkBtn.addEventListener('click', () => {
+        shareLinkOutput.select();
+        navigator.clipboard.writeText(shareLinkOutput.value).then(() => {
+            copyLinkBtn.textContent = 'Copied!';
+            setTimeout(() => { copyLinkBtn.textContent = 'Copy'; }, 2000);
+        });
+    });
+}
+
+// --- Shared Course URL Detection ---
+async function checkForSharedCourse() {
+    const params = new URLSearchParams(window.location.search);
+    const courseId = params.get('course');
+    if (!courseId) return false;
+
+    try {
+        const courseData = await CreatorService.loadSharedCourse(courseId);
+        if (!courseData) {
+            alert("This shared course could not be found. It may have been deleted.");
+            return false;
+        }
+
+        pendingSharedCourse = courseData;
+        pendingSharedCourseId = courseId;
+
+        // Populate modal
+        sharedCourseTitle.textContent = courseData.title;
+        sharedCourseMeta.textContent = `by ${courseData.creatorName}`;
+
+        if (courseData.password) {
+            sharedPasswordSection.style.display = 'block';
+        } else {
+            sharedPasswordSection.style.display = 'none';
+        }
+
+        sharedErrorMsg.style.display = 'none';
+        sharedCourseModal.classList.add('active');
+        return true;
+    } catch (err) {
+        console.error("Error loading shared course:", err);
+        return false;
+    }
+}
+
+// Shared: Start Learning button
+if (sharedAccessBtn) {
+    sharedAccessBtn.addEventListener('click', () => {
+        if (!pendingSharedCourse) return;
+
+        // Check password
+        if (pendingSharedCourse.password) {
+            const entered = sharedPasswordInput.value.trim();
+            if (entered !== pendingSharedCourse.password) {
+                sharedErrorMsg.textContent = "Incorrect password. Please try again.";
+                sharedErrorMsg.style.display = 'block';
+                return;
+            }
+        }
+
+        sharedErrorMsg.style.display = 'none';
+        sharedCourseModal.classList.remove('active');
+
+        // Set a temporary username if none exists
+        if (!savedData.userName) {
+            savedData.userName = "Student";
+            saveToLocalStorage();
+        }
+
+        // Load the shared course into the player
+        CreatorService.incrementAccess(pendingSharedCourseId);
+        const playlistId = pendingSharedCourse.playlistId;
+        loadCourseUI(playlistId, pendingSharedCourse.title);
+        initPlaylistPlayer(playlistId);
+
+        // Clean the URL
+        window.history.replaceState({}, '', window.location.pathname);
+    });
+}
+
+// Shared: Cancel button
+if (sharedCancelBtn) {
+    sharedCancelBtn.addEventListener('click', () => {
+        sharedCourseModal.classList.remove('active');
+        window.history.replaceState({}, '', window.location.pathname);
+        if (!savedData.userName) {
+            show(landingScreen);
+        } else {
+            renderDashboard();
+        }
+    });
 }
 
 // ========================================

@@ -59,8 +59,35 @@
                     </div>
                     <div id="creator-panel" class="role-panel">
                         <h3>Create & share courses</h3>
-                        <p>Build a shareable course from any unlisted YouTube playlist. Password-protect it for your students.</p>
-                        <div class="coming-soon-badge">Coming in Phase 4</div>
+                        <p>Sign in with Google to create a shareable course from any YouTube playlist.</p>
+                        
+                        <div id="creator-login-section">
+                            <button id="creator-google-btn" class="btn-google">
+                                <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google" class="google-icon">
+                                Sign in to Create
+                            </button>
+                        </div>
+
+                        <div id="creator-form-section" style="display:none;">
+                            <div class="form-stack">
+                                <label for="creator-playlist-input">YouTube Playlist URL</label>
+                                <input type="text" id="creator-playlist-input" placeholder="https://youtube.com/playlist?list=...">
+                                <label for="creator-title-input">Course Title</label>
+                                <input type="text" id="creator-title-input" placeholder="e.g. Python for Beginners">
+                                <label for="creator-password-input">Access Password (optional)</label>
+                                <input type="text" id="creator-password-input" placeholder="Leave empty for open access">
+                                <button id="create-course-btn" class="btn-primary" style="margin-top: 0.5rem;">Create & Get Link 🔗</button>
+                            </div>
+                            <div id="creator-result" style="display:none; margin-top: 1.25rem;">
+                                <div class="share-link-box">
+                                    <label style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--green); display:block; margin-bottom: 0.5rem;">✅ Course Created!</label>
+                                    <div class="share-link-row">
+                                        <input type="text" id="share-link-output" readonly>
+                                        <button id="copy-link-btn" class="btn-primary btn-sm">Copy</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -233,7 +260,26 @@
             </div>
         </div>
     </div>
+    <!-- ===== SHARED COURSE ACCESS MODAL ===== -->
+    <div id="shared-course-modal" class="modal-overlay">
+        <div class="shared-course-content glass-card">
+            <div class="shared-course-icon">📚</div>
+            <h2 class="shared-course-title" id="shared-course-title">Loading course...</h2>
+            <p class="shared-course-meta" id="shared-course-meta">by Creator</p>
+            <div id="shared-password-section" style="display:none;">
+                <div class="form-stack" style="margin: 1.5rem 0;">
+                    <label for="shared-password-input">🔒 This course is password-protected</label>
+                    <input type="password" id="shared-password-input" placeholder="Enter access password">
+                </div>
+            </div>
+            <p id="shared-error-msg" style="color: var(--red); font-size: 0.85rem; display:none;"></p>
+            <div style="display: flex; gap: 0.75rem; justify-content: center; margin-top: 1rem;">
+                <button id="shared-access-btn" class="btn-primary">Start Learning →</button>
+                <button id="shared-cancel-btn" class="btn-ghost">Cancel</button>
+            </div>
+        </div>
+    </div>
 
-    <script src="main.js?v=13"></script>
+    <script src="main.js?v=14"></script>
 </body>
 </html>
