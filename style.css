@@ -888,7 +888,25 @@ textarea { resize: none; height: 56px; }
     padding: 0.75rem;
     border-radius: var(--radius-sm);
     border: 1px solid var(--border);
+    position: relative;
 }
+.note-item:hover .note-delete-btn { opacity: 1; }
+.note-delete-btn {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: none;
+    border: none;
+    color: var(--text-tertiary);
+    font-size: 1.1rem;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s;
+    line-height: 1;
+    padding: 0.15rem 0.35rem;
+    border-radius: 4px;
+}
+.note-delete-btn:hover { color: #ef4444; background: rgba(239,68,68,0.1); }
 .note-timestamp {
     display: inline-block;
     background: var(--accent-subtle);
@@ -1311,6 +1329,15 @@ textarea { resize: none; height: 56px; }
     .topbar-meta {
         gap: 0.5rem;
     }
+    .dash-header {
+        flex-direction: column;
+        gap: 0.75rem;
+        align-items: stretch;
+    }
+    .btn-import {
+        width: 100%;
+        text-align: center;
+    }
 
     /* Course Screen */
     .notes-panel {
@@ -1319,8 +1346,19 @@ textarea { resize: none; height: 56px; }
     .video-container {
         padding: 1rem 1rem 0;
     }
+    .notes-input-area {
+        flex-direction: column;
+    }
+    .notes-input-area .btn-primary {
+        width: 100%;
+    }
     .completion-stats {
         grid-template-columns: 1fr;
         gap: 0.75rem;
+    }
+
+    /* Share link */
+    .share-link-row {
+        flex-direction: column;
     }
 }

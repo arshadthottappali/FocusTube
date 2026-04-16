@@ -9,6 +9,8 @@ let currentVideoIndex = 0;
 let playlistLoaded = false;
 let studySessionInterval = null;
 let lastSoughtId = "";
+let cloudSyncTimer = null; // Debounce cloud sync
+let checkPlaylistRetries = 0; // Retry counter for playlist loading
 
 // --- Data Layer ---
 let savedData = JSON.parse(localStorage.getItem('playlearn_data')) || {};
@@ -81,8 +83,16 @@ const AuthService = {
     },
     fetchDataFromCloud: async (uid) => {
         if (firebaseConfig.apiKey === "API_KEY") return null;
+        // Cache: skip if we read within the last 5 minutes
+        const cacheKey = 'playlearn_cloud_read_ts';
+        const lastRead = parseInt(sessionStorage.getItem(cacheKey) || '0');
+        if (Date.now() - lastRead < 300000) {
+            console.log("Skipping cloud read — cached within 5 min");
+            return null;
+        }
         try {
             const doc = await firebase.firestore().collection("users").doc(uid).get();
+            sessionStorage.setItem(cacheKey, Date.now().toString());
             if (doc.exists) return doc.data();
         } catch (err) {
             console.error("Error fetching from cloud:", err);
@@ -123,7 +133,13 @@ if (firebaseConfig.apiKey !== "API_KEY") {
             localStorage.setItem('playlearn_data', JSON.stringify(savedData));
             updateAuthUI(user);
             updateCreatorTab();
-            renderDashboard();
+            
+            // Don't navigate to dashboard if Creator tab is open on landing page
+            const isCreatorActive = document.getElementById('creator-panel')?.classList.contains('active');
+            const isOnLanding = landingScreen?.classList.contains('active');
+            if (!(isCreatorActive && isOnLanding)) {
+                renderDashboard();
+            }
         } else {
             console.log("Auth state confirmed: No user session");
             if (savedData.authLevel === 'cloud') {
@@ -256,9 +272,18 @@ function show(screen, pushHistory = true) {
     const screenName = screen === landingScreen ? 'landing' 
                      : screen === courseScreen ? 'course' 
                      : 'dashboard';
-    if (pushHistory) {
+    // Avoid duplicate history entries
+    const currentState = history.state?.screen;
+    if (pushHistory && currentState !== screenName) {
         history.pushState({ screen: screenName }, '', '');
     }
+}
+
+// HTML sanitizer to prevent XSS
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
 }
 
 // Handle browser back button
@@ -507,6 +532,13 @@ const CreatorService = {
         const user = firebase.auth().currentUser;
         if (!user) throw new Error("You must be signed in to create a course.");
 
+        // Check creation limit (max 1 course per user)
+        const existing = await firebase.firestore().collection("shared_courses")
+            .where("creatorUid", "==", user.uid).get();
+        if (existing.size >= 1) {
+            throw new Error("You've reached the maximum of 1 shared course. Delete your existing course to create a new one.");
+        }
+
         // Fetch video list from the playlist
         const videos = await CreatorService.fetchPlaylistVideos(playlistId);
         if (!videos.length) throw new Error("Could not load any videos from this playlist.");
@@ -551,6 +583,10 @@ const CreatorService = {
     },
 
     incrementAccess: async (courseId) => {
+        // Guard: only increment once per session per course
+        const key = `ft_accessed_${courseId}`;
+        if (sessionStorage.getItem(key)) return;
+        sessionStorage.setItem(key, '1');
         try {
             await firebase.firestore().collection("shared_courses").doc(courseId).update({
                 accessCount: firebase.firestore.FieldValue.increment(1)
@@ -587,6 +623,7 @@ let pendingSharedCourseId = null;
 // Creator: Google login for creator tab
 if (creatorGoogleBtn) {
     creatorGoogleBtn.addEventListener('click', async () => {
+
         await AuthService.loginWithGoogle();
         // After login, show the form
         const user = firebase.auth().currentUser;
@@ -746,6 +783,7 @@ backBtn.addEventListener('click', () => {
     stopProgressTracker();
     saveCurrentProgress();
     saveToLocalStorage();
+    forceCloudSync();
     renderDashboard();
 });
 
@@ -821,7 +859,7 @@ function renderDashboard() {
                 </div>
             </div>
             <div class="course-card-body">
-                <h4 class="course-card-title" title="${title}">${title}</h4>
+                <h4 class="course-card-title" title="${escapeHtml(title)}">${escapeHtml(title)}</h4>
                 <div class="course-card-meta">
                     <span>${completed}/${totalVids} modules</span>
                     <span>${percent}%</span>
@@ -999,9 +1037,14 @@ function checkPlaylist() {
     const pList = player.getPlaylist();
     if (pList && pList.length > 0) {
         playlistLoaded = true;
+        checkPlaylistRetries = 0;
         buildCourseData(pList);
-    } else {
+    } else if (checkPlaylistRetries < 20) {
+        checkPlaylistRetries++;
         setTimeout(checkPlaylist, 500);
+    } else {
+        console.warn("Playlist failed to load after 20 retries");
+        checkPlaylistRetries = 0;
     }
 }
 
@@ -1067,18 +1110,23 @@ function buildCourseData(videoIdsList) {
     renderSidebar();
     renderNotes();
 
-    // Fetch individual video titles
-    courseData.videos.forEach((vid, idx) => {
-        fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${vid.id}`)
-            .then(r => r.json())
-            .then(data => {
-                if (data && data.title) {
-                    courseData.videos[idx].title = data.title;
-                    syncCurrentCourseToStorage();
-                    renderSidebar();
-                }
-            }).catch(() => {});
-    });
+    // Fetch individual video titles (throttled — 3 at a time)
+    const fetchTitle = async (vid, idx) => {
+        try {
+            const r = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${vid.id}`);
+            const data = await r.json();
+            if (data && data.title) {
+                courseData.videos[idx].title = data.title;
+                renderSidebar();
+            }
+        } catch (e) {}
+    };
+    // Process in batches of 3
+    for (let i = 0; i < courseData.videos.length; i += 3) {
+        const batch = courseData.videos.slice(i, i + 3);
+        await Promise.all(batch.map((vid, j) => fetchTitle(vid, i + j)));
+    }
+    syncCurrentCourseToStorage();
 }
 
 // ========================================
@@ -1137,8 +1185,8 @@ function startProgressTracker() {
 }
 
 function stopProgressTracker() {
-    if (progressTracker) clearInterval(progressTracker);
-    if (studySessionInterval) clearInterval(studySessionInterval);
+    if (progressTracker) { clearInterval(progressTracker); progressTracker = null; }
+    if (studySessionInterval) { clearInterval(studySessionInterval); studySessionInterval = null; }
 }
 
 function saveCurrentProgress() {
@@ -1291,13 +1339,20 @@ function renderNotes() {
         notesListEl.innerHTML = '<p style="color:var(--text-tertiary);text-align:center;padding:2rem 0;font-size:0.8125rem;">No notes yet. Use the timestamp button to mark key moments.</p>';
         return;
     }
-    notes.forEach(note => {
+    notes.forEach((note, noteIndex) => {
         const div = document.createElement('div');
         div.className = 'note-item';
         div.innerHTML = `
             <span class="note-timestamp" onclick="jumpToTime(${note.time})">${formatTime(note.time)}</span>
-            <p class="note-text">${note.text}</p>
+            <p class="note-text">${escapeHtml(note.text)}</p>
+            <button class="note-delete-btn" title="Delete note">×</button>
         `;
+        div.querySelector('.note-delete-btn').addEventListener('click', () => {
+            const videoId = courseData.videos[currentVideoIndex].id;
+            courseData.notes[videoId].splice(noteIndex, 1);
+            syncCurrentCourseToStorage();
+            renderNotes();
+        });
         notesListEl.appendChild(div);
     });
 }
@@ -1317,12 +1372,31 @@ function syncCurrentCourseToStorage() {
     saveToLocalStorage();
 }
 function saveToLocalStorage() {
-    localStorage.setItem('playlearn_data', JSON.stringify(savedData));
+    try {
+        localStorage.setItem('playlearn_data', JSON.stringify(savedData));
+    } catch (e) {
+        console.warn("localStorage quota exceeded", e);
+    }
+    // Debounce cloud sync — max once per 30 seconds
+    if (savedData.authLevel === 'cloud' && firebaseConfig.apiKey !== "API_KEY") {
+        if (!cloudSyncTimer) {
+            cloudSyncTimer = setTimeout(() => {
+                cloudSyncTimer = null;
+                const user = firebase.auth().currentUser;
+                if (user) {
+                    AuthService.syncDataToCloud(user.uid);
+                }
+            }, 30000);
+        }
+    }
+}
+
+// Force immediate cloud sync (used on back button, logout, etc.)
+function forceCloudSync() {
+    if (cloudSyncTimer) { clearTimeout(cloudSyncTimer); cloudSyncTimer = null; }
     if (savedData.authLevel === 'cloud' && firebaseConfig.apiKey !== "API_KEY") {
         const user = firebase.auth().currentUser;
-        if (user) {
-            AuthService.syncDataToCloud(user.uid);
-        }
+        if (user) AuthService.syncDataToCloud(user.uid);
     }
 }
 
