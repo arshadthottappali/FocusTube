@@ -391,6 +391,46 @@ textarea { resize: none; height: 56px; }
     background: var(--bg-raised);
 }
 
+/* Creator Profile */
+.creator-profile-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: var(--bg);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    margin-bottom: 1rem;
+    font-size: 0.85rem;
+}
+.creator-course-card {
+    background: var(--bg);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-sm);
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+.creator-course-info h4 {
+    margin: 0 0 0.35rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+.creator-course-stats {
+    display: flex;
+    gap: 0.75rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+.creator-course-stats .badge-protected {
+    color: var(--accent);
+    font-weight: 600;
+}
+.creator-course-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
 /* Shared Course Access Modal */
 .shared-course-content {
     max-width: 440px;

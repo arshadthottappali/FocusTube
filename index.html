@@ -80,21 +80,47 @@
                         </div>
 
                         <div id="creator-form-section" style="display:none;">
-                            <div class="form-stack">
-                                <label for="creator-playlist-input">YouTube Playlist URL</label>
-                                <input type="text" id="creator-playlist-input" placeholder="https://youtube.com/playlist?list=...">
-                                <label for="creator-title-input">Course Title</label>
-                                <input type="text" id="creator-title-input" placeholder="e.g. Python for Beginners">
-                                <label for="creator-password-input">Access Password (optional)</label>
-                                <input type="text" id="creator-password-input" placeholder="Leave empty for open access">
-                                <button id="create-course-btn" class="btn-primary" style="margin-top: 0.5rem;">Create & Get Link 🔗</button>
+                            <!-- Profile bar -->
+                            <div class="creator-profile-bar">
+                                <span>👤 Signed in as <strong id="creator-user-name">User</strong></span>
+                                <button id="creator-logout-btn" class="btn-ghost btn-sm" style="color: var(--text-tertiary); padding: 0.25rem 0.5rem;">Sign Out</button>
                             </div>
-                            <div id="creator-result" style="display:none; margin-top: 1.25rem;">
-                                <div class="share-link-box">
-                                    <label style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--green); display:block; margin-bottom: 0.5rem;">✅ Course Created!</label>
-                                    <div class="share-link-row">
-                                        <input type="text" id="share-link-output" readonly>
-                                        <button id="copy-link-btn" class="btn-primary btn-sm">Copy</button>
+
+                            <!-- Existing course (shown if user already has one) -->
+                            <div id="creator-existing-course" style="display:none;">
+                                <div class="creator-course-card">
+                                    <div class="creator-course-info">
+                                        <h4 id="creator-existing-title">—</h4>
+                                        <div class="creator-course-stats">
+                                            <span id="creator-existing-access">0 students accessed</span>
+                                            <span id="creator-existing-password-badge"></span>
+                                        </div>
+                                    </div>
+                                    <div class="creator-course-actions">
+                                        <button id="creator-copy-existing-btn" class="btn-ghost btn-sm" title="Copy link">🔗 Copy</button>
+                                        <button id="creator-delete-btn" class="btn-ghost btn-sm" title="Delete course" style="color: #ef4444;">🗑️ Delete</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Create form (shown only if no existing course) -->
+                            <div id="creator-new-form">
+                                <div class="form-stack">
+                                    <label for="creator-playlist-input">YouTube Playlist URL</label>
+                                    <input type="text" id="creator-playlist-input" placeholder="https://youtube.com/playlist?list=...">
+                                    <label for="creator-title-input">Course Title</label>
+                                    <input type="text" id="creator-title-input" placeholder="e.g. Python for Beginners">
+                                    <label for="creator-password-input">Access Password (optional)</label>
+                                    <input type="text" id="creator-password-input" placeholder="Leave empty for open access">
+                                    <button id="create-course-btn" class="btn-primary" style="margin-top: 0.5rem;">Create & Get Link 🔗</button>
+                                </div>
+                                <div id="creator-result" style="display:none; margin-top: 1.25rem;">
+                                    <div class="share-link-box">
+                                        <label style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--green); display:block; margin-bottom: 0.5rem;">✅ Course Created!</label>
+                                        <div class="share-link-row">
+                                            <input type="text" id="share-link-output" readonly>
+                                            <button id="copy-link-btn" class="btn-primary btn-sm">Copy</button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

@@ -635,12 +635,100 @@ if (creatorGoogleBtn) {
 }
 
 // Update creator tab when auth changes
-function updateCreatorTab() {
+async function updateCreatorTab() {
     const user = firebase.auth().currentUser;
     if (user && creatorLoginSection && creatorFormSection) {
         creatorLoginSection.style.display = 'none';
         creatorFormSection.style.display = 'block';
+
+        // Set user name
+        const nameEl = document.getElementById('creator-user-name');
+        if (nameEl) nameEl.textContent = user.displayName || 'Creator';
+
+        // Check for existing course
+        try {
+            const snapshot = await firebase.firestore().collection("shared_courses")
+                .where("creatorUid", "==", user.uid).get();
+            
+            const existingEl = document.getElementById('creator-existing-course');
+            const newFormEl = document.getElementById('creator-new-form');
+
+            if (!snapshot.empty) {
+                const doc = snapshot.docs[0];
+                const data = doc.data();
+                
+                document.getElementById('creator-existing-title').textContent = data.title;
+                document.getElementById('creator-existing-access').textContent = `${data.accessCount || 0} students accessed`;
+                
+                const pwBadge = document.getElementById('creator-existing-password-badge');
+                pwBadge.textContent = data.password ? '🔒 Protected' : '🌐 Open';
+                pwBadge.className = data.password ? 'badge-protected' : '';
+
+                existingEl.style.display = 'block';
+                newFormEl.style.display = 'none';
+
+                // Store for copy/delete
+                existingEl.dataset.courseId = doc.id;
+                existingEl.dataset.courseUrl = `${window.location.origin}${window.location.pathname}?course=${doc.id}`;
+            } else {
+                existingEl.style.display = 'none';
+                newFormEl.style.display = 'block';
+            }
+        } catch (e) {
+            console.warn("Could not check existing courses:", e);
+        }
     }
+}
+
+// Creator: Copy existing course link
+const creatorCopyExistingBtn = document.getElementById('creator-copy-existing-btn');
+if (creatorCopyExistingBtn) {
+    creatorCopyExistingBtn.addEventListener('click', () => {
+        const url = document.getElementById('creator-existing-course').dataset.courseUrl;
+        navigator.clipboard.writeText(url).then(() => {
+            creatorCopyExistingBtn.textContent = '✅ Copied!';
+            setTimeout(() => { creatorCopyExistingBtn.textContent = '🔗 Copy'; }, 2000);
+        });
+    });
+}
+
+// Creator: Delete existing course (two-click)
+const creatorDeleteBtn = document.getElementById('creator-delete-btn');
+let creatorDeletePending = false;
+if (creatorDeleteBtn) {
+    creatorDeleteBtn.addEventListener('click', async () => {
+        if (!creatorDeletePending) {
+            creatorDeletePending = true;
+            creatorDeleteBtn.textContent = '⚠️ Sure?';
+            setTimeout(() => {
+                if (creatorDeletePending) {
+                    creatorDeletePending = false;
+                    creatorDeleteBtn.textContent = '🗑️ Delete';
+                }
+            }, 3000);
+        } else {
+            creatorDeletePending = false;
+            const courseId = document.getElementById('creator-existing-course').dataset.courseId;
+            try {
+                await firebase.firestore().collection("shared_courses").doc(courseId).delete();
+                creatorDeleteBtn.textContent = '🗑️ Delete';
+                updateCreatorTab(); // Refresh to show create form
+            } catch (e) {
+                alert("Error deleting course: " + e.message);
+            }
+        }
+    });
+}
+
+// Creator: Sign out button
+const creatorLogoutBtn = document.getElementById('creator-logout-btn');
+if (creatorLogoutBtn) {
+    creatorLogoutBtn.addEventListener('click', async () => {
+        await AuthService.logout();
+        creatorLoginSection.style.display = 'block';
+        creatorFormSection.style.display = 'none';
+        creatorResult.style.display = 'none';
+    });
 }
 
 // Creator: Create course button
@@ -658,6 +746,8 @@ if (createCourseBtn) {
             const shareUrl = `${window.location.origin}${window.location.pathname}?course=${courseId}`;
             shareLinkOutput.value = shareUrl;
             creatorResult.style.display = 'block';
+            // Refresh to show existing course card
+            setTimeout(() => updateCreatorTab(), 1500);
         } catch (err) {
             alert(err.message);
         } finally {
