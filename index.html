@@ -89,53 +89,75 @@
                             </button>
                         </div>
 
-                        <div id="creator-form-section" style="display:none;">
-                            <!-- Profile bar -->
-                            <div class="creator-profile-bar">
-                                <span>👤 Signed in as <strong id="creator-user-name">User</strong></span>
-                                <div style="display:flex; gap:0.5rem; justify-content:center;">
-                                    <button id="creator-back-to-learner-btn" class="btn-ghost btn-sm" style="display:none; color: var(--accent); padding: 0.25rem 0.5rem;">◀ Back to Learning</button>
-                                    <button id="creator-logout-btn" class="btn-ghost btn-sm" style="color: var(--text-tertiary); padding: 0.25rem 0.5rem;">Sign Out</button>
-                                </div>
-                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-                            <!-- Existing course (shown if user already has one) -->
-                            <div id="creator-existing-course" style="display:none;">
-                                <div class="creator-course-card">
-                                    <div class="creator-course-info">
-                                        <h4 id="creator-existing-title">—</h4>
-                                        <div class="creator-course-stats">
-                                            <span id="creator-existing-access">0 students accessed</span>
-                                            <span id="creator-existing-password-badge"></span>
-                                        </div>
-                                    </div>
-                                    <div class="creator-course-actions">
-                                        <button id="creator-copy-existing-btn" class="btn-ghost btn-sm" title="Copy link">🔗 Copy</button>
-                                        <button id="creator-delete-btn" class="btn-ghost btn-sm" title="Delete course" style="color: #ef4444;">🗑️ Delete</button>
-                                    </div>
-                                </div>
+    <!-- ===== CREATOR DASHBOARD ===== -->
+    <div id="creator-dashboard-screen" class="screen">
+        <nav class="dashboard-nav">
+            <div class="nav-content">
+                <div class="brand">FocusTube 🎓 Creator</div>
+                <div class="nav-right">
+                    <button class="theme-toggle" id="creator-theme-toggle" title="Toggle theme">☀️</button>
+                    <div class="user-profile">
+                        <div class="user-avatar" id="creator-avatar" title="Options">C</div>
+                        <div class="profile-dropdown" id="creator-dropdown">
+                            <div class="dropdown-header">
+                                <span class="user-name" id="creator-dropdown-name">Creator</span>
+                                <span class="auth-status">Creator Session</span>
                             </div>
+                            <div class="profile-dropdown-body">
+                                <button class="dropdown-item" id="creator-switch-learner-btn">📚 Learner Dashboard</button>
+                                <button class="dropdown-item logout-item" id="creator-logout-btn" style="color: #ef4444; border-top: 1px solid var(--border); margin-top: 0.5rem; padding-top: 0.75rem;">🚪 Sign Out</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
 
-                            <!-- Create form (shown only if no existing course) -->
-                            <div id="creator-new-form">
-                                <div class="form-stack">
-                                    <label for="creator-playlist-input">YouTube Playlist URL</label>
-                                    <input type="text" id="creator-playlist-input" placeholder="https://youtube.com/playlist?list=...">
-                                    <label for="creator-title-input">Course Title</label>
-                                    <input type="text" id="creator-title-input" placeholder="e.g. Python for Beginners">
-                                    <label for="creator-password-input">Access Password (optional)</label>
-                                    <input type="text" id="creator-password-input" placeholder="Leave empty for open access">
-                                    <button id="create-course-btn" class="btn-primary" style="margin-top: 0.5rem;">Create & Get Link 🔗</button>
-                                </div>
-                                <div id="creator-result" style="display:none; margin-top: 1.25rem;">
-                                    <div class="share-link-box">
-                                        <label style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--green); display:block; margin-bottom: 0.5rem;">✅ Course Created!</label>
-                                        <div class="share-link-row">
-                                            <input type="text" id="share-link-output" readonly>
-                                            <button id="copy-link-btn" class="btn-primary btn-sm">Copy</button>
-                                        </div>
-                                    </div>
-                                </div>
+        <div class="dashboard-body" style="display:flex; justify-content:center; align-items:flex-start; min-height: 80vh;">
+            <div id="creator-dashboard-panel" style="margin-top: 2rem; max-width: 500px; width: 100%; background: var(--bg); padding: 2rem; border-radius: var(--radius); border: 1px solid var(--border);">
+                <!-- Existing course (shown if user already has one) -->
+                <div id="creator-existing-course" style="display:none;">
+                    <h2 style="margin-top:0; font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem;">Your Published Course</h2>
+                    <div class="creator-course-card">
+                        <div class="creator-course-info">
+                            <h4 id="creator-existing-title" style="font-size: 1.1rem; color: var(--accent);">—</h4>
+                            <div class="creator-course-stats" style="margin-top:0.5rem;">
+                                <span id="creator-existing-access" style="background:var(--bg-raised); padding:0.25rem 0.5rem; border-radius:var(--radius-sm);">0 students accessed</span>
+                                <span id="creator-existing-password-badge" style="background:var(--bg-raised); padding:0.25rem 0.5rem; border-radius:var(--radius-sm);"></span>
+                            </div>
+                        </div>
+                        <div class="creator-course-actions" style="margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+                            <button id="creator-copy-existing-btn" class="btn-primary" title="Copy link" style="flex:1;">🔗 Copy Invite Link</button>
+                            <button id="creator-delete-btn" class="btn-ghost" title="Delete course" style="color: #ef4444; flex:0.4;">🗑️ Delete</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Create form (shown only if no existing course) -->
+                <div id="creator-new-form">
+                    <h2 style="margin-top:0; font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem;">Create a New Course</h2>
+                    <div class="form-stack">
+                        <label for="creator-playlist-input">YouTube Playlist URL</label>
+                        <input type="text" id="creator-playlist-input" placeholder="https://youtube.com/playlist?list=...">
+                        <label for="creator-title-input">Course Title</label>
+                        <input type="text" id="creator-title-input" placeholder="e.g. Python for Beginners">
+                        <label for="creator-password-input">Access Password (optional)</label>
+                        <input type="text" id="creator-password-input" placeholder="Leave empty for open access">
+                        <button id="create-course-btn" class="btn-primary" style="margin-top: 1rem; padding: 0.75rem;">Create & Get Link 🔗</button>
+                    </div>
+                    <div id="creator-result" style="display:none; margin-top: 1.25rem;">
+                        <div class="share-link-box">
+                            <label style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--green); display:block; margin-bottom: 0.5rem;">✅ Course Created!</label>
+                            <div class="share-link-row">
+                                <input type="text" id="share-link-output" readonly>
+                                <button id="copy-link-btn" class="btn-primary btn-sm">Copy</button>
                             </div>
                         </div>
                     </div>
@@ -144,7 +166,7 @@
         </div>
     </div>
 
-    <!-- ===== DASHBOARD ===== -->
+    <!-- ===== LEARNER DASHBOARD ===== -->
     <div id="welcome-screen" class="screen">
         <nav class="topbar">
             <div class="topbar-brand">

@@ -132,12 +132,16 @@ if (firebaseConfig.apiKey !== "API_KEY") {
 
             localStorage.setItem('playlearn_data', JSON.stringify(savedData));
             updateAuthUI(user);
-            updateCreatorTab();
             
-            // Don't navigate to dashboard if Creator tab is open on landing page
+            // Route appropriately based on where we are
             const isCreatorActive = document.getElementById('creator-panel')?.classList.contains('active');
             const isOnLanding = landingScreen?.classList.contains('active');
-            if (!(isCreatorActive && isOnLanding)) {
+            
+            if (isCreatorActive && isOnLanding) {
+                // If they just logged in from the Creator tab, take them to Creator screen
+                initCreatorDashboard();
+            } else {
+                // Otherwise, normal login to Learner Dashboard
                 renderDashboard();
             }
         } else {
@@ -173,10 +177,12 @@ function updateAuthUI(user) {
     }
 }
 
-// --- DOM ---
+// --- Screen & DOM Refs ---
 const landingScreen    = document.getElementById('landing-screen');
 const welcomeScreen    = document.getElementById('welcome-screen');
-const courseScreen      = document.getElementById('course-screen');
+const courseScreen     = document.getElementById('course-screen');
+const creatorScreen    = document.getElementById('creator-dashboard-screen');
+
 const learnerTab       = document.getElementById('learner-tab');
 const creatorTab       = document.getElementById('creator-tab');
 const learnerPanel     = document.getElementById('learner-panel');
@@ -265,12 +271,15 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 
 function show(screen, pushHistory = true) {
-    [landingScreen, welcomeScreen, courseScreen].forEach(s => s.classList.remove('active'));
+    [landingScreen, welcomeScreen, courseScreen, creatorScreen].forEach(s => {
+        if(s) s.classList.remove('active');
+    });
     screen.classList.add('active');
     
     // Push state so browser back button works within the app
     const screenName = screen === landingScreen ? 'landing' 
                      : screen === courseScreen ? 'course' 
+                     : screen === creatorScreen ? 'creator'
                      : 'dashboard';
     // Avoid duplicate history entries
     const currentState = history.state?.screen;
@@ -495,8 +504,7 @@ creatorTab.addEventListener('click', () => {
 // Navigate from Dashboard to Creator
 document.getElementById('open-creator-dashboard-btn').addEventListener('click', () => {
     profileDropdown.classList.remove('open');
-    show(landingScreen);
-    creatorTab.click();
+    initCreatorDashboard();
 });
 
 saveNameBtn.addEventListener('click', handleSaveName);
@@ -651,57 +659,101 @@ if (creatorGoogleBtn) {
     });
 }
 
-// Update creator tab when auth changes
-async function updateCreatorTab() {
+// Update creator tab when auth changes -> now initCreatorDashboard
+async function initCreatorDashboard() {
     const user = firebase.auth().currentUser;
-    if (user && creatorLoginSection && creatorFormSection) {
-        creatorLoginSection.style.display = 'none';
-        creatorFormSection.style.display = 'block';
-
-        // Set user name
-        const nameEl = document.getElementById('creator-user-name');
-        if (nameEl) nameEl.textContent = user.displayName || 'Creator';
-
-        // Show 'Back to Learning' button if user has a local session active
-        const backBtn = document.getElementById('creator-back-to-learner-btn');
-        if (backBtn) {
-            backBtn.style.display = savedData.userName ? 'block' : 'none';
-            backBtn.onclick = () => renderDashboard();
-        }
-
-        // Check for existing course
-        try {
-            const snapshot = await firebase.firestore().collection("shared_courses")
-                .where("creatorUid", "==", user.uid).get();
-            
-            const existingEl = document.getElementById('creator-existing-course');
-            const newFormEl = document.getElementById('creator-new-form');
-
-            if (!snapshot.empty) {
-                const doc = snapshot.docs[0];
-                const data = doc.data();
-                
-                document.getElementById('creator-existing-title').textContent = data.title;
-                document.getElementById('creator-existing-access').textContent = `${data.accessCount || 0} students accessed`;
-                
-                const pwBadge = document.getElementById('creator-existing-password-badge');
-                pwBadge.textContent = data.password ? '🔒 Protected' : '🌐 Open';
-                pwBadge.className = data.password ? 'badge-protected' : '';
-
-                existingEl.style.display = 'block';
-                newFormEl.style.display = 'none';
-
-                // Store for copy/delete
-                existingEl.dataset.courseId = doc.id;
-                existingEl.dataset.courseUrl = `${window.location.origin}${window.location.pathname}?course=${doc.id}`;
-            } else {
-                existingEl.style.display = 'none';
-                newFormEl.style.display = 'block';
-            }
-        } catch (e) {
-            console.warn("Could not check existing courses:", e);
-        }
+    if (!user) {
+        show(landingScreen);
+        creatorTab.click();
+        return;
     }
+    
+    // Show the creator screen
+    show(creatorScreen);
+
+    // Set avatar & name
+    const creatorAvatar = document.getElementById('creator-avatar');
+    const creatorDropdownName = document.getElementById('creator-dropdown-name');
+    if (creatorAvatar && user.displayName) creatorAvatar.textContent = user.displayName.charAt(0).toUpperCase();
+    if (creatorDropdownName && user.displayName) creatorDropdownName.textContent = user.displayName;
+
+    // Check for existing course
+    try {
+        const snapshot = await firebase.firestore().collection("shared_courses")
+            .where("creatorUid", "==", user.uid).get();
+        
+        const existingEl = document.getElementById('creator-existing-course');
+        const newFormEl = document.getElementById('creator-new-form');
+
+        if (!snapshot.empty) {
+            const doc = snapshot.docs[0];
+            const data = doc.data();
+            
+            document.getElementById('creator-existing-title').textContent = data.title;
+            document.getElementById('creator-existing-access').textContent = `${data.accessCount || 0} students accessed`;
+            
+            const pwBadge = document.getElementById('creator-existing-password-badge');
+            pwBadge.textContent = data.password ? '🔒 Protected' : '🌐 Open';
+            pwBadge.className = data.password ? 'badge-protected' : '';
+
+            existingEl.style.display = 'block';
+            newFormEl.style.display = 'none';
+
+            // Store for copy/delete
+            existingEl.dataset.courseId = doc.id;
+            existingEl.dataset.courseUrl = `${window.location.origin}${window.location.pathname}?course=${doc.id}`;
+        } else {
+            existingEl.style.display = 'none';
+            newFormEl.style.display = 'block';
+        }
+    } catch (e) {
+        console.warn("Could not check existing courses:", e);
+    }
+}
+
+// Creator Theme Toggle
+document.getElementById('creator-theme-toggle')?.addEventListener('click', () => {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('playlearn_theme', newTheme);
+    
+    const icon = newTheme === 'light' ? '☀️' : '🌙';
+    document.getElementById('theme-toggle').textContent = icon + ' ' + (newTheme === 'light' ? 'Light' : 'Dark');
+    document.getElementById('landing-theme-toggle').textContent = icon;
+    document.getElementById('creator-theme-toggle').textContent = icon;
+});
+
+// Creator Profile Dropdown logic
+const creatorAvatar = document.getElementById('creator-avatar');
+const creatorDropdown = document.getElementById('creator-dropdown');
+if (creatorAvatar && creatorDropdown) {
+    creatorAvatar.addEventListener('click', (e) => {
+        e.stopPropagation();
+        creatorDropdown.classList.toggle('open');
+    });
+    document.addEventListener('click', () => creatorDropdown.classList.remove('open'));
+    creatorDropdown.addEventListener('click', e => e.stopPropagation());
+}
+
+// Creator Dropdown Actions
+document.getElementById('creator-switch-learner-btn')?.addEventListener('click', () => {
+    creatorDropdown?.classList.remove('open');
+    if (savedData.userName) {
+        renderDashboard();
+    } else {
+        show(landingScreen);
+        learnerTab.click();
+    }
+});
+
+const creatorLogoutBtn = document.getElementById('creator-logout-btn');
+if (creatorLogoutBtn) {
+    creatorLogoutBtn.addEventListener('click', async () => {
+        creatorDropdown?.classList.remove('open');
+        await AuthService.logout();
+        initCreatorDashboard(); // Will route to landing screen creator tab
+    });
 }
 
 // Creator: Copy existing course link
@@ -736,7 +788,7 @@ if (creatorDeleteBtn) {
             try {
                 await firebase.firestore().collection("shared_courses").doc(courseId).delete();
                 creatorDeleteBtn.textContent = '🗑️ Delete';
-                updateCreatorTab(); // Refresh to show create form
+                initCreatorDashboard(); // Refresh to show create form
             } catch (e) {
                 alert("Error deleting course: " + e.message);
             }
@@ -744,16 +796,6 @@ if (creatorDeleteBtn) {
     });
 }
 
-// Creator: Sign out button
-const creatorLogoutBtn = document.getElementById('creator-logout-btn');
-if (creatorLogoutBtn) {
-    creatorLogoutBtn.addEventListener('click', async () => {
-        await AuthService.logout();
-        creatorLoginSection.style.display = 'block';
-        creatorFormSection.style.display = 'none';
-        creatorResult.style.display = 'none';
-    });
-}
 
 // Creator: Create course button
 if (createCourseBtn) {
@@ -771,7 +813,7 @@ if (createCourseBtn) {
             shareLinkOutput.value = shareUrl;
             creatorResult.style.display = 'block';
             // Refresh to show existing course card
-            setTimeout(() => updateCreatorTab(), 1500);
+            setTimeout(() => initCreatorDashboard(), 1500);
         } catch (err) {
             alert(err.message);
         } finally {
