@@ -11,6 +11,7 @@ let studySessionInterval = null;
 let lastSoughtId = "";
 let cloudSyncTimer = null; // Debounce cloud sync
 let checkPlaylistRetries = 0; // Retry counter for playlist loading
+let playerSessionId = 0; // Incremented on each player init to cancel stale retries
 
 // --- Data Layer ---
 let savedData = JSON.parse(localStorage.getItem('playlearn_data')) || {};
@@ -344,7 +345,10 @@ userAvatar.addEventListener('click', (e) => {
     e.stopPropagation();
     profileDropdown.classList.toggle('open');
 });
-document.addEventListener('click', () => profileDropdown.classList.remove('open'));
+document.addEventListener('click', () => {
+    profileDropdown?.classList.remove('open');
+    document.getElementById('creator-dropdown')?.classList.remove('open');
+});
 profileDropdown.addEventListener('click', e => e.stopPropagation());
 
 renameUserBtn.addEventListener('click', () => {
@@ -538,7 +542,7 @@ const CreatorService = {
     },
 
     generateCourseId: () => {
-        return 'ft_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+        return 'ft_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 7);
     },
 
     createCourse: async (playlistUrl, title, password) => {
@@ -768,7 +772,8 @@ if (creatorLogoutBtn) {
     creatorLogoutBtn.addEventListener('click', async () => {
         creatorDropdown?.classList.remove('open');
         await AuthService.logout();
-        initCreatorDashboard(); // Will route to landing screen creator tab
+        localStorage.removeItem('playlearn_data');
+        location.reload(); // Clear session and reload cleanly
     });
 }
 
@@ -830,7 +835,9 @@ if (createCourseBtn) {
             shareLinkOutput.value = shareUrl;
             creatorResult.style.display = 'block';
             // Refresh to show existing course card
-            setTimeout(() => initCreatorDashboard(), 1500);
+            setTimeout(async () => {
+                try { await initCreatorDashboard(); } catch(e) { console.error('Dashboard refresh error:', e); }
+            }, 1500);
         } catch (err) {
             alert(err.message);
         } finally {
@@ -910,9 +917,18 @@ if (sharedAccessBtn) {
             saveToLocalStorage();
         }
 
+        // Focus Limit Check (skip if course already imported)
+        const playlistId = pendingSharedCourse.playlistId;
+        if (!savedData.courses[playlistId]) {
+            const activeCount = Object.keys(savedData.courses).length;
+            if (activeCount >= (savedData.maxCourses || 5)) {
+                showFocusWarning();
+                return;
+            }
+        }
+
         // Load the shared course into the player
         CreatorService.incrementAccess(pendingSharedCourseId);
-        const playlistId = pendingSharedCourse.playlistId;
         loadCourseUI(playlistId, pendingSharedCourse.title);
         initPlaylistPlayer(playlistId);
 
@@ -1085,8 +1101,12 @@ function renderDashboard() {
             e.stopPropagation();
             if (titleEl.querySelector('input')) return;
             const original = savedData.courses[cId].title;
-            titleEl.innerHTML = `<input type="text" class="inline-edit-input" value="${original}">`;
-            const inp = titleEl.querySelector('input');
+            titleEl.innerHTML = '';
+            const inp = document.createElement('input');
+            inp.type = 'text';
+            inp.className = 'inline-edit-input';
+            inp.value = original;
+            titleEl.appendChild(inp);
             inp.focus();
             inp.select();
             const commit = () => {
@@ -1164,6 +1184,7 @@ function loadCourseUI(playlistId, optionalName) {
 //  YOUTUBE PLAYER
 // ========================================
 function initPlaylistPlayer(playlistId) {
+    playerSessionId++; // Invalidate any pending checkPlaylist retry chains
     if (player && typeof player.destroy === 'function') player.destroy();
 
     if (!document.getElementById('player')) {
@@ -1215,7 +1236,10 @@ function checkPlaylist() {
         buildCourseData(pList);
     } else if (checkPlaylistRetries < 20) {
         checkPlaylistRetries++;
-        setTimeout(checkPlaylist, 500);
+        const capturedSession = playerSessionId;
+        setTimeout(() => {
+            if (playerSessionId === capturedSession) checkPlaylist();
+        }, 500);
     } else {
         console.warn("Playlist failed to load after 20 retries");
         checkPlaylistRetries = 0;
@@ -1289,16 +1313,17 @@ async function buildCourseData(videoIdsList) {
         try {
             const r = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${vid.id}`);
             const data = await r.json();
-            if (data && data.title) {
-                courseData.videos[idx].title = data.title;
-                renderSidebar();
-            }
+            if (data?.title) courseData.videos[idx].title = data.title;
         } catch (e) {}
     };
-    // Process in batches of 3
+    // Process in batches of 3 — render ONCE per batch to avoid DOM thrashing
     for (let i = 0; i < courseData.videos.length; i += 3) {
         const batch = courseData.videos.slice(i, i + 3);
         await Promise.all(batch.map((vid, j) => fetchTitle(vid, i + j)));
+        renderSidebar(); // One render per batch instead of one per video
+        if (i + 3 < courseData.videos.length) {
+            await new Promise(r => setTimeout(r, 150)); // Rate-limit noembed.com
+        }
     }
     syncCurrentCourseToStorage();
 }
