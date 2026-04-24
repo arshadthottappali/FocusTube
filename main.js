@@ -1068,6 +1068,7 @@ function renderDashboard() {
                 // Second click: actually delete
                 delete savedData.courses[cId];
                 saveToLocalStorage();
+                forceCloudSync();
                 renderDashboard();
             }
         });
