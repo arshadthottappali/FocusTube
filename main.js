@@ -83,16 +83,8 @@ const AuthService = {
     },
     fetchDataFromCloud: async (uid) => {
         if (firebaseConfig.apiKey === "API_KEY") return null;
-        // Cache: skip if we read within the last 5 minutes
-        const cacheKey = 'playlearn_cloud_read_ts';
-        const lastRead = parseInt(sessionStorage.getItem(cacheKey) || '0');
-        if (Date.now() - lastRead < 300000) {
-            console.log("Skipping cloud read — cached within 5 min");
-            return null;
-        }
         try {
             const doc = await firebase.firestore().collection("users").doc(uid).get();
-            sessionStorage.setItem(cacheKey, Date.now().toString());
             if (doc.exists) return doc.data();
         } catch (err) {
             console.error("Error fetching from cloud:", err);
@@ -1362,7 +1354,7 @@ function startProgressTracker() {
         totalTimeStat.innerText = formatHoursMins(savedData.totalStudyTime) + ' studied';
         activityTime.innerText = formatHoursMins(savedData.totalStudyTime);
     }, 1000);
-    studySessionInterval = setInterval(saveToLocalStorage, 10000);
+    studySessionInterval = setInterval(saveToLocalStorage, 30000);
 }
 
 function stopProgressTracker() {
@@ -1558,7 +1550,7 @@ function saveToLocalStorage() {
     } catch (e) {
         console.warn("localStorage quota exceeded", e);
     }
-    // Debounce cloud sync — max once per 30 seconds
+    // Debounce cloud sync — max once per 60 seconds
     if (savedData.authLevel === 'cloud' && firebaseConfig.apiKey !== "API_KEY") {
         if (!cloudSyncTimer) {
             cloudSyncTimer = setTimeout(() => {
@@ -1567,7 +1559,7 @@ function saveToLocalStorage() {
                 if (user) {
                     AuthService.syncDataToCloud(user.uid);
                 }
-            }, 30000);
+            }, 60000);
         }
     }
 }
