@@ -461,44 +461,117 @@ textarea { resize: none; height: 56px; }
     font-family: 'JetBrains Mono', monospace;
 }
 
-/* Creator Profile */
-.creator-profile-bar {
+/* ========================================
+   CREATOR DASHBOARD
+   ======================================== */
+.creator-main-card {
+    padding: 2.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    cursor: default;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+.creator-main-card:hover {
+    transform: none; /* Override Learner card hover */
+    box-shadow: var(--shadow-lg);
+}
+
+.creator-card-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    padding: 0.75rem;
-    background: var(--bg);
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border);
-    margin-bottom: 1rem;
-    font-size: 0.85rem;
+    align-items: flex-start;
 }
-.creator-course-card {
-    background: var(--bg);
-    border: 1px solid var(--accent);
-    border-radius: var(--radius-sm);
-    padding: 1rem;
-    margin-bottom: 1rem;
+.creator-card-header h3 {
+    font-size: 1.75rem;
+    font-weight: 800;
+    margin-bottom: 0.75rem;
+    letter-spacing: -0.02em;
+    color: var(--text);
 }
-.creator-course-info h4 {
-    margin: 0 0 0.35rem;
-    font-size: 0.95rem;
-    font-weight: 700;
-}
-.creator-course-stats {
+.creator-card-meta {
     display: flex;
     gap: 0.75rem;
-    font-size: 0.75rem;
+    font-size: 0.875rem;
     color: var(--text-secondary);
+    flex-wrap: wrap;
 }
-.creator-course-stats .badge-protected {
+
+.creator-share-box {
+    background: var(--bg);
+    padding: 1.5rem;
+    border-radius: var(--radius-sm);
+    border: 1px dashed var(--border-focus);
+}
+.creator-share-box label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
     color: var(--accent);
-    font-weight: 600;
+    margin-bottom: 0.75rem;
+    display: block;
+    letter-spacing: 0.05em;
 }
-.creator-course-actions {
+
+.share-input {
+    background: transparent;
+    border: none;
+    padding: 0;
+    color: var(--text-secondary);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.875rem;
+    width: 100%;
+}
+.share-input:focus {
+    border: none;
+    outline: none;
+}
+
+.creator-card-actions {
     display: flex;
-    gap: 0.5rem;
-    margin-top: 0.75rem;
+    justify-content: flex-end;
+    margin-top: 0.5rem;
+}
+.delete-action {
+    color: var(--red);
+    opacity: 0.8;
+}
+.delete-action:hover {
+    background: rgba(239,68,68,0.1);
+    border-color: rgba(239,68,68,0.3);
+    color: var(--red);
+    opacity: 1;
+}
+
+/* Creator Form */
+.creator-form-inner {
+    padding: 2.5rem;
+}
+.creator-form-inner h3 {
+    margin-bottom: 2rem;
+    font-size: 1.5rem;
+    font-weight: 800;
+}
+.form-action-row {
+    margin-top: 2rem;
+}
+.full-width {
+    width: 100%;
+    padding: 1rem;
+    font-size: 1rem;
+}
+
+.creator-result-box {
+    margin-top: 2rem;
+    animation: screenIn 0.3s ease;
+}
+.success-box {
+    border: 1px solid var(--green);
+    background: rgba(16, 185, 129, 0.05);
+}
+.success-box label {
+    color: var(--green);
 }
 
 /* Shared Course Access Modal */
@@ -530,7 +603,8 @@ textarea { resize: none; height: 56px; }
 /* ========================================
    DASHBOARD SCREEN
    ======================================== */
-#welcome-screen {
+#welcome-screen,
+#creator-dashboard-screen {
     flex-direction: column;
     min-height: 100vh;
 }

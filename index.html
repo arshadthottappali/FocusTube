@@ -163,33 +163,33 @@
                 
                 <!-- Existing course -->
                 <div id="creator-existing-course" style="display:none;">
-                    <div class="course-card creator-main-card" style="cursor:default; padding: 2rem;">
-                        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 1.5rem;">
+                    <div class="creator-main-card glass-card">
+                        <div class="creator-card-header">
                             <div>
-                                <h3 id="creator-existing-title" style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem;">—</h3>
-                                <div style="display:flex; gap: 1rem; font-size: 0.875rem; color: var(--text-secondary);">
-                                    <span id="creator-existing-access-badge">👥 0 Students</span>
-                                    <span id="creator-existing-password-badge">🌐 Open Access</span>
+                                <h3 id="creator-existing-title">—</h3>
+                                <div class="creator-card-meta">
+                                    <span id="creator-existing-access-badge" class="badge">👥 0 Students</span>
+                                    <span id="creator-existing-password-badge" class="badge">🌐 Open Access</span>
                                 </div>
                             </div>
                         </div>
-                        <div class="share-link-box" style="margin-top: 1.5rem; background: var(--bg); border: 1px solid var(--border); padding: 1.25rem;">
-                            <label style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--accent); margin-bottom: 0.75rem; display:block;">Share Invite Link</label>
+                        <div class="share-link-box creator-share-box">
+                            <label>Share Invite Link</label>
                             <div class="share-link-row">
-                                <input type="text" id="share-link-output-existing" readonly style="background:transparent; border:none; padding:0;">
+                                <input type="text" id="share-link-output-existing" readonly class="share-input">
                                 <button id="creator-copy-existing-btn" class="btn-primary btn-sm">Copy Link 🔗</button>
                             </div>
                         </div>
-                        <div style="margin-top: 1.5rem; display:flex; justify-content:flex-end;">
-                            <button id="creator-delete-btn" class="btn-ghost btn-sm" style="color: #ef4444; opacity: 0.8;">🗑️ Delete this course</button>
+                        <div class="creator-card-actions">
+                            <button id="creator-delete-btn" class="btn-ghost btn-sm delete-action">🗑️ Delete this course</button>
                         </div>
                     </div>
                 </div>
 
                 <!-- Create Form (Hidden if course exists) -->
                 <div id="creator-new-form" class="import-panel" style="display:none;">
-                    <div class="import-inner" style="padding: 2.5rem;">
-                        <h3 style="margin-bottom: 1.5rem; font-size: 1.25rem;">Create a New Course</h3>
+                    <div class="import-inner creator-form-inner">
+                        <h3>Create a New Course</h3>
                         <div class="form-stack">
                             <label for="creator-playlist-input">YouTube Playlist URL</label>
                             <input type="text" id="creator-playlist-input" placeholder="https://youtube.com/playlist?list=...">
@@ -197,15 +197,15 @@
                             <input type="text" id="creator-title-input" placeholder="e.g. Modern Web Design 2026">
                             <label for="creator-password-input">Access Password (Optional)</label>
                             <input type="text" id="creator-password-input" placeholder="Leave blank for public access">
-                            <div style="margin-top: 1.5rem;">
-                                <button id="create-course-btn" class="btn-primary" style="width:100%; padding: 1rem;">Publish Course ✨</button>
+                            <div class="form-action-row">
+                                <button id="create-course-btn" class="btn-primary full-width">Publish Course ✨</button>
                             </div>
                         </div>
-                        <div id="creator-result" style="display:none; margin-top: 1.5rem;">
-                            <div class="share-link-box" style="border: 1px solid var(--green); background: rgba(16, 185, 129, 0.05);">
-                                <label style="color: var(--green); font-weight: 700; margin-bottom: 0.5rem; display:block;">✨ Course Successfully Published!</label>
+                        <div id="creator-result" style="display:none;" class="creator-result-box">
+                            <div class="share-link-box success-box">
+                                <label>✨ Course Successfully Published!</label>
                                 <div class="share-link-row">
-                                    <input type="text" id="share-link-output" readonly>
+                                    <input type="text" id="share-link-output" readonly class="share-input">
                                     <button id="copy-link-btn" class="btn-primary btn-sm">Copy</button>
                                 </div>
                             </div>
