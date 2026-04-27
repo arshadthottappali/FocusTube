@@ -1,0 +1,44 @@
+# FocusTube
+
+> Convert any YouTube playlist into a distraction-free, structured course. Free. No sign-up required.
+
+## What is FocusTube?
+
+FocusTube is a free web application that turns any public YouTube playlist into a clean, LMS-style learning experience. It removes YouTube's sidebar, recommendations, comments, and autoplay distractions, letting you focus entirely on studying.
+
+## URL
+
+https://focus-tube-chi.vercel.app/
+
+## Key Features
+
+- **YouTube Playlist to Course**: Paste any YouTube playlist URL to instantly create a structured course dashboard.
+- **Progress Tracking**: Each video is individually tracked. Your progress is saved automatically.
+- **Timestamped Notes**: Take notes while watching with a single click. Notes are anchored to the exact video timestamp and saved permanently.
+- **Offline-First**: All data is saved locally in your browser. No internet required after initial load.
+- **Cloud Sync**: Optional Google Sign-In syncs your progress and courses across all your devices via Firebase.
+- **Creator Mode**: Educators and content creators can publish a YouTube playlist as a shareable course with an optional access password. Students access it via a unique share link.
+- **Dark / Light Mode**: Full theme support.
+- **Export Study Guide**: Export all your notes for a course as a Markdown file.
+
+## Who is it for?
+
+- Students using YouTube for self-study (MOOCs, university lectures, tutorial playlists)
+- Educators who want to package a YouTube playlist as a simple course for students
+- Anyone who wants a distraction-free way to watch and learn from YouTube playlists
+
+## Technology
+
+- Pure HTML, CSS, and vanilla JavaScript (no framework)
+- Firebase Authentication (Google Sign-In) and Firestore for cloud sync
+- YouTube IFrame Player API for video playback
+- Hosted on Vercel
+
+## Author
+
+Muhammed Arshad T
+Support: https://ko-fi.com/focustube
+
+## License
+
+Free to use.

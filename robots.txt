@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://focus-tube-chi.vercel.app/sitemap.xml

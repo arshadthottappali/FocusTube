@@ -6,6 +6,10 @@
     <title>FocusTube — YouTube Playlist to Course LMS</title>
     <meta name="description" content="FocusTube turns any YouTube playlist into a distraction-free course with progress tracking and timestamped notes.">
     <link rel="icon" type="image/png" href="favicon.png">
+    <!-- Preconnect for faster resource loading -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://www.youtube.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 
@@ -14,16 +18,51 @@
     <meta property="og:description" content="Turn any YouTube playlist into a distraction-free course with progress tracking and timestamped notes.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://focus-tube-chi.vercel.app/">
-    <meta property="og:image" content="https://focus-tube-chi.vercel.app/favicon.png">
-    <meta name="twitter:card" content="summary">
+    <meta property="og:image" content="https://focus-tube-chi.vercel.app/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="FocusTube — Distraction-Free Learning">
     <meta name="twitter:description" content="Convert YouTube playlists into structured courses with progress tracking.">
+    <meta name="twitter:image" content="https://focus-tube-chi.vercel.app/og-image.png">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
     
     <!-- Firebase SDK (v8 Compat) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "FocusTube",
+      "url": "https://focus-tube-chi.vercel.app/",
+      "description": "FocusTube converts any YouTube playlist into a structured, distraction-free course with progress tracking, timestamped notes, and optional cloud sync. Free to use with no sign-up required.",
+      "applicationCategory": "EducationApplication",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "featureList": [
+        "YouTube playlist to LMS converter",
+        "Distraction-free video player",
+        "Progress tracking per video",
+        "Timestamped notes",
+        "Cloud sync via Google account",
+        "Creator mode to publish and share courses",
+        "Offline-first architecture",
+        "No sign-up required"
+      ],
+      "author": {
+        "@type": "Person",
+        "name": "Muhammed Arshad T"
+      },
+      "screenshot": "https://focus-tube-chi.vercel.app/favicon.png"
+    }
+    </script>
 </head>
 <body>
 
