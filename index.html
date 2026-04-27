@@ -13,7 +13,8 @@
     <meta property="og:title" content="FocusTube — YouTube Playlist to Course LMS">
     <meta property="og:description" content="Turn any YouTube playlist into a distraction-free course with progress tracking and timestamped notes.">
     <meta property="og:type" content="website">
-    <meta property="og:image" content="favicon.png">
+    <meta property="og:url" content="https://focus-tube-chi.vercel.app/">
+    <meta property="og:image" content="https://focus-tube-chi.vercel.app/favicon.png">
     <meta name="twitter:card" content="summary">
     <meta name="twitter:title" content="FocusTube — Distraction-Free Learning">
     <meta name="twitter:description" content="Convert YouTube playlists into structured courses with progress tracking.">
@@ -193,6 +194,10 @@
                         <div class="form-stack">
                             <label for="creator-playlist-input">YouTube Playlist URL</label>
                             <input type="text" id="creator-playlist-input" placeholder="https://youtube.com/playlist?list=...">
+                            <div class="creator-tip">
+                                <span class="creator-tip-icon">⚠️</span>
+                                <span>Your playlist must have <strong>Allow embedding</strong> turned ON in YouTube Studio → Playlists → Edit → Playlist Settings. <a href="https://studio.youtube.com" target="_blank" rel="noopener" class="creator-tip-link">Open YouTube Studio →</a></span>
+                            </div>
                             <label for="creator-title-input">Course Title</label>
                             <input type="text" id="creator-title-input" placeholder="e.g. Modern Web Design 2026">
                             <label for="creator-password-input">Access Password (Optional)</label>

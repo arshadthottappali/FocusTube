@@ -56,7 +56,7 @@ const AuthService = {
         try {
             const result = await firebase.auth().signInWithPopup(provider);
             if (result.user) {
-                console.log("Google login successful:", result.user.displayName);
+            // onAuthStateChanged will handle routing
                 // onAuthStateChanged will handle the rest (merge data, render dashboard)
             }
         } catch (error) {
@@ -100,13 +100,12 @@ if (firebaseConfig.apiKey !== "API_KEY") {
 
     firebase.auth().onAuthStateChanged(async (user) => {
         if (user) {
-            console.log("Auth state confirmed: User is logged in", user.uid);
             savedData.authLevel = 'cloud';
             
             try {
                 const cloudData = await AuthService.fetchDataFromCloud(user.uid);
                 if (cloudData) {
-                    console.log("Found cloud data, merging...");
+                    // Merge cloud data with local
                     // Use cloud name only if we don't have a local name
                     if (!savedData.userName && cloudData.userName) {
                         savedData.userName = cloudData.userName;
@@ -138,7 +137,6 @@ if (firebaseConfig.apiKey !== "API_KEY") {
                 renderDashboard();
             }
         } else {
-            console.log("Auth state confirmed: No user session");
             if (savedData.authLevel === 'cloud') {
                 savedData.authLevel = 'local';
             }
@@ -235,7 +233,6 @@ tag.src = "https://www.youtube.com/iframe_api";
 document.head.appendChild(tag);
 
 function onYouTubeIframeAPIReady() {
-    console.log("YouTube IFrame API Ready");
 }
 
 // ========================================
@@ -1275,7 +1272,7 @@ function syncVideoIndex() {
         lastSoughtId = currentId;
         const progress = courseData.videosProgress[currentId];
         if (progress && progress.watchTime > 0 && !progress.completed) {
-            console.log("Resuming at", progress.watchTime);
+            // Seek to saved time
             // Delay seek slightly to ensure player is ready
             setTimeout(() => {
                 if (player && typeof player.seekTo === 'function') {
