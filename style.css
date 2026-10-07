@@ -1678,3 +1678,13 @@ textarea { resize: none; height: 56px; }
         flex-direction: column;
     }
 }
+
+/* Imported titles remain readable without widening mobile layouts. */
+.activity-card > div {
+    min-width: 0;
+}
+.activity-card-value,
+#last-studied-stat,
+#creator-content-title {
+    overflow-wrap: anywhere;
+}
