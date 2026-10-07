@@ -14,15 +14,17 @@ let checkPlaylistRetries = 0; // Retry counter for playlist loading
 let playerSessionId = 0; // Incremented on each player init to cancel stale retries
 
 // --- Data Layer ---
-let savedData = JSON.parse(localStorage.getItem('playlearn_data')) || {};
-if (!savedData.userName) savedData.userName = "";
-if (!savedData.courses) savedData.courses = {};
-if (!savedData.totalStudyTime) savedData.totalStudyTime = 0;
-if (!savedData.lastAccessedCourseTitle) savedData.lastAccessedCourseTitle = "";
-if (!savedData.supportLink || savedData.supportLink.includes('paypal.me') || savedData.supportLink.includes('muhammedarshadthottappali')) {
-    savedData.supportLink = "https://ko-fi.com/focustube";
+let savedData;
+let dataRecoveryRequired = false;
+try {
+    const raw = localStorage.getItem('playlearn_data');
+    savedData = FocusTubeSecurity.normalizeData(raw ? JSON.parse(raw) : { courses: {} });
+} catch (err) {
+    dataRecoveryRequired = true;
+    // Keep the original storage untouched so a malformed backup can be recovered.
+    savedData = FocusTubeSecurity.normalizeData({ courses: {} });
+    window.addEventListener('DOMContentLoaded', () => alert('Saved data could not be read safely. The original browser data has not been overwritten. Restore a valid backup before making changes.'));
 }
-if (!savedData.maxCourses) savedData.maxCourses = 5;
 
 let courseData = { id: "", title: "", videos: [], videosProgress: {}, notes: {} };
 
@@ -76,6 +78,7 @@ const AuthService = {
     },
     syncDataToCloud: async (uid) => {
         if (firebaseConfig.apiKey === "API_KEY") return;
+        if (dataRecoveryRequired) return;
         try {
             await firebase.firestore().collection("users").doc(uid).set(savedData);
         } catch (err) {
@@ -86,7 +89,7 @@ const AuthService = {
         if (firebaseConfig.apiKey === "API_KEY") return null;
         try {
             const doc = await firebase.firestore().collection("users").doc(uid).get();
-            if (doc.exists) return doc.data();
+            if (doc.exists) return FocusTubeSecurity.normalizeData(doc.data());
         } catch (err) {
             console.error("Error fetching from cloud:", err);
         }
@@ -122,7 +125,7 @@ if (firebaseConfig.apiKey !== "API_KEY") {
                 savedData.userName = user.displayName || "User";
             }
 
-            localStorage.setItem('playlearn_data', JSON.stringify(savedData));
+            if (!dataRecoveryRequired) localStorage.setItem('playlearn_data', JSON.stringify(savedData));
             updateAuthUI(user);
             
             // Route appropriately based on where we are
@@ -278,11 +281,11 @@ function show(screen, pushHistory = true) {
     }
 }
 
-// HTML sanitizer to prevent XSS
-function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
+// Escape text for the remaining HTML templates, including quoted attributes.
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[char]));
 }
 
 // Handle browser back button
@@ -451,17 +454,22 @@ restoreDataBtn.addEventListener('click', () => {
 restoreInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    if (file.size > FocusTubeSecurity.MAX_BACKUP_BYTES) {
+        alert('Backup is too large. Maximum size is 10 MB.');
+        restoreInput.value = '';
+        return;
+    }
 
     const reader = new FileReader();
     reader.onload = (event) => {
         try {
-            const importedData = JSON.parse(event.target.result);
-            if (!importedData.courses || typeof importedData.courses !== 'object') {
-                throw new Error("Invalid backup file format.");
-            }
+            const importedData = FocusTubeSecurity.normalizeData(JSON.parse(event.target.result));
+            // A backup cannot choose authentication state or an executable support link.
+            importedData.authLevel = firebase.auth().currentUser ? 'cloud' : 'local';
 
             if (confirm("⚠️ This will OVERWRITE all your current courses and notes. Are you sure you want to restore this backup?")) {
                 savedData = importedData;
+                dataRecoveryRequired = false;
                 saveToLocalStorage();
                 location.reload();
             }
@@ -532,6 +540,7 @@ function handleSaveName() {
 // ========================================
 //  CREATOR MODE
 // ========================================
+const SHARING_PAUSED_MESSAGE = 'Shared courses are temporarily unavailable while access protection is updated. Your personal courses and cloud sync still work.';
 const CreatorService = {
     extractPlaylistId: (url) => {
         const match = url.match(/[?&]list=([a-zA-Z0-9_-]+)/);
@@ -542,39 +551,9 @@ const CreatorService = {
         return 'ft_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 7);
     },
 
-    createCourse: async (playlistUrl, title, password) => {
-        const playlistId = CreatorService.extractPlaylistId(playlistUrl);
-        if (!playlistId) throw new Error("Invalid playlist URL. Please paste a valid YouTube playlist link.");
-        if (!title.trim()) throw new Error("Please enter a course title.");
-
-        const user = firebase.auth().currentUser;
-        if (!user) throw new Error("You must be signed in to create a course.");
-
-        // Check creation limit (max 1 course per user)
-        const existing = await firebase.firestore().collection("shared_courses")
-            .where("creatorUid", "==", user.uid).get();
-        if (existing.size >= 1) {
-            throw new Error("You've reached the maximum of 1 shared course. Delete your existing course to create a new one.");
-        }
-
-        // Fetch video list from the playlist
-        const videos = await CreatorService.fetchPlaylistVideos(playlistId);
-        if (!videos.length) throw new Error("Could not load any videos from this playlist.");
-
-        const courseId = CreatorService.generateCourseId();
-        const courseDoc = {
-            title: title.trim(),
-            playlistId: playlistId,
-            videos: videos,
-            password: password || "",
-            creatorUid: user.uid,
-            creatorName: user.displayName || "Anonymous Creator",
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            accessCount: 0
-        };
-
-        await firebase.firestore().collection("shared_courses").doc(courseId).set(courseDoc);
-        return courseId;
+    createCourse: async () => {
+        // Do not create records, store passwords, or publish new share links.
+        throw new Error(SHARING_PAUSED_MESSAGE);
     },
 
     fetchPlaylistVideos: async (playlistId) => {
@@ -594,22 +573,13 @@ const CreatorService = {
         return [{ id: playlistId, title: "Playlist" }];
     },
 
-    loadSharedCourse: async (courseId) => {
-        const doc = await firebase.firestore().collection("shared_courses").doc(courseId).get();
-        if (!doc.exists) return null;
-        return doc.data();
+    loadSharedCourse: async () => {
+        // Client containment only. Firestore rules must also block old clients.
+        throw new Error(SHARING_PAUSED_MESSAGE);
     },
 
-    incrementAccess: async (courseId) => {
-        // Guard: only increment once per session per course
-        const key = `ft_accessed_${courseId}`;
-        if (sessionStorage.getItem(key)) return;
-        sessionStorage.setItem(key, '1');
-        try {
-            await firebase.firestore().collection("shared_courses").doc(courseId).update({
-                accessCount: firebase.firestore.FieldValue.increment(1)
-            });
-        } catch (e) { /* ignore */ }
+    incrementAccess: async () => {
+        // Sharing is paused: no anonymous counter writes.
     }
 };
 
@@ -638,19 +608,8 @@ const sharedCancelBtn = document.getElementById('shared-cancel-btn');
 let pendingSharedCourse = null; // stores loaded shared course data
 let pendingSharedCourseId = null;
 
-// Creator: Google login for creator tab
-if (creatorGoogleBtn) {
-    creatorGoogleBtn.addEventListener('click', async () => {
-
-        await AuthService.loginWithGoogle();
-        // After login, show the form
-        const user = firebase.auth().currentUser;
-        if (user) {
-            creatorLoginSection.style.display = 'none';
-            creatorFormSection.style.display = 'block';
-        }
-    });
-}
+// No creator sign-in is needed while sharing is paused.
+if (creatorGoogleBtn) creatorGoogleBtn.disabled = true;
 
 // Update creator tab when auth changes -> now initCreatorDashboard
 async function initCreatorDashboard() {
@@ -674,58 +633,12 @@ async function initCreatorDashboard() {
     if (creatorDropdownName) creatorDropdownName.textContent = userName;
     if (creatorGreeting) creatorGreeting.textContent = `Welcome, ${userName.split(' ')[0]}`;
 
-    // Check for existing course
-    try {
-        const snapshot = await firebase.firestore().collection("shared_courses")
-            .where("creatorUid", "==", user.uid).get();
-        
-        const existingEl = document.getElementById('creator-existing-course');
-        const newFormEl = document.getElementById('creator-new-form');
-        const topNewBtn = document.getElementById('creator-top-new-btn');
-        const contentTitle = document.getElementById('creator-content-title');
-
-        if (!snapshot.empty) {
-            const doc = snapshot.docs[0];
-            const data = doc.data();
-            const shareUrl = `${window.location.origin}${window.location.pathname}?course=${doc.id}`;
-            
-            // Update Main Card
-            document.getElementById('creator-existing-title').textContent = data.title;
-            document.getElementById('creator-existing-access-badge').textContent = `👥 ${data.accessCount || 0} Students`;
-            
-            const pwBadge = document.getElementById('creator-existing-password-badge');
-            pwBadge.textContent = data.password ? '🔒 Protected Access' : '🌐 Open Access';
-            
-            const shareInput = document.getElementById('share-link-output-existing');
-            if (shareInput) shareInput.value = shareUrl;
-
-            // Update Stats Bar
-            document.getElementById('creator-stat-students').textContent = data.accessCount || 0;
-            document.getElementById('creator-stat-courses').textContent = "1/1";
-            document.getElementById('creator-stat-privacy').textContent = data.password ? "Protected" : "Public";
-
-            existingEl.style.display = 'block';
-            newFormEl.style.display = 'none';
-            if (topNewBtn) topNewBtn.style.display = 'none';
-            if (contentTitle) contentTitle.textContent = "Your Published Course";
-
-            // Store for copy/delete
-            existingEl.dataset.courseId = doc.id;
-            existingEl.dataset.courseUrl = shareUrl;
-        } else {
-            // Update Stats for empty state
-            document.getElementById('creator-stat-students').textContent = "0";
-            document.getElementById('creator-stat-courses').textContent = "0/1";
-            document.getElementById('creator-stat-privacy').textContent = "Ready";
-
-            existingEl.style.display = 'none';
-            newFormEl.style.display = 'block';
-            if (topNewBtn) topNewBtn.style.display = 'none';
-            if (contentTitle) contentTitle.textContent = "Publish Content";
-        }
-    } catch (e) {
-        console.warn("Could not check existing courses:", e);
-    }
+    // No shared-course collection reads while sharing is paused.
+    document.getElementById('creator-existing-course').style.display = 'none';
+    document.getElementById('creator-new-form').style.display = 'none';
+    document.getElementById('creator-content-title').textContent = 'Shared courses temporarily unavailable';
+    document.getElementById('creator-stat-courses').textContent = 'Paused';
+    document.getElementById('creator-stat-privacy').textContent = 'Unavailable';
 }
 
 // Creator Theme Toggle
@@ -787,61 +700,11 @@ if (creatorCopyExistingBtn) {
     });
 }
 
-// Creator: Delete existing course (two-click)
-const creatorDeleteBtn = document.getElementById('creator-delete-btn');
-let creatorDeletePending = false;
-if (creatorDeleteBtn) {
-    creatorDeleteBtn.addEventListener('click', async () => {
-        if (!creatorDeletePending) {
-            creatorDeletePending = true;
-            creatorDeleteBtn.textContent = '⚠️ Sure?';
-            setTimeout(() => {
-                if (creatorDeletePending) {
-                    creatorDeletePending = false;
-                    creatorDeleteBtn.textContent = '🗑️ Delete';
-                }
-            }, 3000);
-        } else {
-            creatorDeletePending = false;
-            const courseId = document.getElementById('creator-existing-course').dataset.courseId;
-            try {
-                await firebase.firestore().collection("shared_courses").doc(courseId).delete();
-                creatorDeleteBtn.textContent = '🗑️ Delete';
-                initCreatorDashboard(); // Refresh to show create form
-            } catch (e) {
-                alert("Error deleting course: " + e.message);
-            }
-        }
-    });
-}
-
-
-// Creator: Create course button
+// Shared-course management is paused. Existing records need server-side containment.
+// Creation stays disabled even if an old UI event is dispatched programmatically.
 if (createCourseBtn) {
-    createCourseBtn.addEventListener('click', async () => {
-        const url = creatorPlaylistInput.value.trim();
-        const title = creatorTitleInput.value.trim();
-        const password = creatorPasswordInput.value.trim();
-
-        createCourseBtn.disabled = true;
-        createCourseBtn.textContent = 'Creating...';
-
-        try {
-            const courseId = await CreatorService.createCourse(url, title, password);
-            const shareUrl = `${window.location.origin}${window.location.pathname}?course=${courseId}`;
-            shareLinkOutput.value = shareUrl;
-            creatorResult.style.display = 'block';
-            // Refresh to show existing course card
-            setTimeout(async () => {
-                try { await initCreatorDashboard(); } catch(e) { console.error('Dashboard refresh error:', e); }
-            }, 1500);
-        } catch (err) {
-            alert(err.message);
-        } finally {
-            createCourseBtn.disabled = false;
-            createCourseBtn.textContent = 'Create & Get Link 🔗';
-        }
-    });
+    createCourseBtn.disabled = true;
+    createCourseBtn.textContent = 'Sharing Temporarily Unavailable';
 }
 
 // Creator: Copy link
@@ -858,80 +721,16 @@ if (copyLinkBtn) {
 // --- Shared Course URL Detection ---
 async function checkForSharedCourse() {
     const params = new URLSearchParams(window.location.search);
-    const courseId = params.get('course');
-    if (!courseId) return false;
-
-    try {
-        const courseData = await CreatorService.loadSharedCourse(courseId);
-        if (!courseData) {
-            alert("This shared course could not be found. It may have been deleted.");
-            return false;
-        }
-
-        pendingSharedCourse = courseData;
-        pendingSharedCourseId = courseId;
-
-        // Populate modal
-        sharedCourseTitle.textContent = courseData.title;
-        sharedCourseMeta.textContent = `by ${courseData.creatorName}`;
-
-        if (courseData.password) {
-            sharedPasswordSection.style.display = 'block';
-        } else {
-            sharedPasswordSection.style.display = 'none';
-        }
-
-        sharedErrorMsg.style.display = 'none';
-        sharedCourseModal.classList.add('active');
-        return true;
-    } catch (err) {
-        console.error("Error loading shared course:", err);
-        return false;
-    }
+    if (!params.get('course')) return false;
+    // No Firestore read, password prompt or link import while sharing is paused.
+    alert(SHARING_PAUSED_MESSAGE);
+    window.history.replaceState({}, '', window.location.pathname);
+    return false;
 }
 
-// Shared: Start Learning button
+// Defense in depth if stale UI is still present.
 if (sharedAccessBtn) {
-    sharedAccessBtn.addEventListener('click', () => {
-        if (!pendingSharedCourse) return;
-
-        // Check password
-        if (pendingSharedCourse.password) {
-            const entered = sharedPasswordInput.value.trim();
-            if (entered !== pendingSharedCourse.password) {
-                sharedErrorMsg.textContent = "Incorrect password. Please try again.";
-                sharedErrorMsg.style.display = 'block';
-                return;
-            }
-        }
-
-        sharedErrorMsg.style.display = 'none';
-        sharedCourseModal.classList.remove('active');
-
-        // Set a temporary username if none exists
-        if (!savedData.userName) {
-            savedData.userName = "Student";
-            saveToLocalStorage();
-        }
-
-        // Focus Limit Check (skip if course already imported)
-        const playlistId = pendingSharedCourse.playlistId;
-        if (!savedData.courses[playlistId]) {
-            const activeCount = Object.keys(savedData.courses).length;
-            if (activeCount >= (savedData.maxCourses || 5)) {
-                showFocusWarning();
-                return;
-            }
-        }
-
-        // Load the shared course into the player
-        CreatorService.incrementAccess(pendingSharedCourseId);
-        loadCourseUI(playlistId, pendingSharedCourse.title);
-        initPlaylistPlayer(playlistId);
-
-        // Clean the URL
-        window.history.replaceState({}, '', window.location.pathname);
-    });
+    sharedAccessBtn.disabled = true;
 }
 
 // Shared: Cancel button
@@ -987,7 +786,7 @@ function renderDashboard() {
     profileName.innerText = savedData.userName;
 
     // Support Link Footer (always show hardcoded developer link)
-    footerSupportLink.href = savedData.supportLink;
+    footerSupportLink.href = FocusTubeSecurity.SUPPORT_URL;
     footerSupportLink.innerHTML = `💖 Support the Developer`;
 
     // Topbar stat
@@ -1032,12 +831,13 @@ function renderDashboard() {
         const percent = totalVids > 0 ? Math.round((completed / totalVids) * 100) : 0;
         const isDone = totalVids > 0 && percent === 100;
         const title = c.title || 'Untitled Course';
-        const thumbUrl = totalVids > 0 && c.videos[0] ? `https://img.youtube.com/vi/${c.videos[0].id}/mqdefault.jpg` : 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&q=80&w=600';
+        const thumbnailId = totalVids > 0 && c.videos[0] && FocusTubeSecurity.safeId(c.videos[0].id) ? c.videos[0].id : null;
+        const thumbUrl = thumbnailId ? `https://img.youtube.com/vi/${thumbnailId}/mqdefault.jpg` : 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&q=80&w=600';
 
         const card = document.createElement('div');
         card.className = `course-card${isDone ? ' completed' : ''}`;
         card.innerHTML = `
-            <div class="course-card-thumb" style="background-image:url('${thumbUrl}')">
+            <div class="course-card-thumb">
                 <div class="card-overlay">
                     <button class="overlay-btn rename" title="Rename">✏️ Rename</button>
                     <button class="overlay-btn export-btn" title="Export Study Guide">📥 Export</button>
@@ -1045,7 +845,7 @@ function renderDashboard() {
                 </div>
             </div>
             <div class="course-card-body">
-                <h4 class="course-card-title" title="${escapeHtml(title)}">${escapeHtml(title)}</h4>
+                <h4 class="course-card-title"></h4>
                 <div class="course-card-meta">
                     <span>${completed}/${totalVids} modules</span>
                     <span>${percent}%</span>
@@ -1053,6 +853,10 @@ function renderDashboard() {
                 <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${percent}%"></div></div>
             </div>
         `;
+
+        card.querySelector('.course-card-thumb').style.backgroundImage = `url("${thumbUrl}")`;
+        card.querySelector('.course-card-title').textContent = title;
+        card.querySelector('.course-card-title').title = title;
 
         // Delete — two-click safety (no confirm dialog)
         const delBtn = card.querySelector('.delete-btn');
@@ -1152,6 +956,10 @@ function resumeCourse(playlistId) {
 }
 
 function loadCourseUI(playlistId, optionalName) {
+    if (!FocusTubeSecurity.safeId(playlistId)) {
+        alert('Invalid YouTube playlist ID.');
+        return;
+    }
     currentPlaylistId = playlistId;
     lastSoughtId = ""; // Reset so seek-to-saved-time works on re-entry
 
@@ -1341,12 +1149,18 @@ function renderSidebar() {
         const li = document.createElement('li');
         li.className = `video-item${index === currentVideoIndex ? ' active' : ''}`;
         li.innerHTML = `
-            <div class="video-thumbnail" style="background-image:url('https://img.youtube.com/vi/${vid.id}/default.jpg')"></div>
+            <div class="video-thumbnail"></div>
             <div class="video-info">
-                <span class="video-title" title="${vid.title}">${vid.title}</span>
+                <span class="video-title"></span>
                 <span class="video-status">${done ? '✓ Done' : (progress && progress.watchTime > 0 ? '◔ In progress' : '○ Not started')}</span>
             </div>
         `;
+        const videoTitle = li.querySelector('.video-title');
+        videoTitle.textContent = vid.title;
+        videoTitle.title = vid.title;
+        if (FocusTubeSecurity.safeId(vid.id)) {
+            li.querySelector('.video-thumbnail').style.backgroundImage = `url("https://img.youtube.com/vi/${vid.id}/default.jpg")`;
+        }
         li.addEventListener('click', () => loadSpecificVideo(index));
         videoListEl.appendChild(li);
     });
@@ -1475,9 +1289,10 @@ function showFocusWarning() {
         item.className = 'focus-course-item';
         item.innerHTML = `
             <span class="course-dot"></span>
-            <span>${c.title || 'Untitled Course'}</span>
+            <span class="focus-course-title"></span>
             <span class="course-pct">${pct}% done</span>
         `;
+        item.querySelector('.focus-course-title').textContent = c.title || 'Untitled Course';
         focusCourseList.appendChild(item);
     });
 
@@ -1539,10 +1354,15 @@ function renderNotes() {
         const div = document.createElement('div');
         div.className = 'note-item';
         div.innerHTML = `
-            <span class="note-timestamp" onclick="jumpToTime(${note.time})">${formatTime(note.time)}</span>
-            <p class="note-text">${escapeHtml(note.text)}</p>
+            <span class="note-timestamp"></span>
+            <p class="note-text"></p>
             <button class="note-delete-btn" title="Delete note">×</button>
         `;
+        const timestamp = div.querySelector('.note-timestamp');
+        const safeTime = typeof note.time === 'number' && Number.isFinite(note.time) && note.time >= 0 ? note.time : 0;
+        timestamp.textContent = formatTime(safeTime);
+        timestamp.addEventListener('click', () => jumpToTime(safeTime));
+        div.querySelector('.note-text').textContent = note.text;
         div.querySelector('.note-delete-btn').addEventListener('click', () => {
             const videoId = courseData.videos[currentVideoIndex].id;
             courseData.notes[videoId].splice(noteIndex, 1);
@@ -1568,6 +1388,7 @@ function syncCurrentCourseToStorage() {
     saveToLocalStorage();
 }
 function saveToLocalStorage() {
+    if (dataRecoveryRequired) return;
     try {
         localStorage.setItem('playlearn_data', JSON.stringify(savedData));
     } catch (e) {
@@ -1589,6 +1410,7 @@ function saveToLocalStorage() {
 
 // Force immediate cloud sync (used on back button, logout, etc.)
 function forceCloudSync() {
+    if (dataRecoveryRequired) return;
     if (cloudSyncTimer) { clearTimeout(cloudSyncTimer); cloudSyncTimer = null; }
     if (savedData.authLevel === 'cloud' && firebaseConfig.apiKey !== "API_KEY") {
         const user = firebase.auth().currentUser;
@@ -1646,4 +1468,4 @@ function formatHoursMins(s) {
     if (h > 0) return `${h}h ${m}m`;
     if (m > 0) return `${m}m`;
     return `${s}s`;
-}
+                }
