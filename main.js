@@ -29,23 +29,29 @@ try {
 let courseData = { id: "", title: "", videos: [], videosProgress: {}, notes: {} };
 
 // --- Firebase Config Object ---
-// User must paste their Firebase config here
+// Load from environment variables (see .env.example and SECURITY.md)
 const firebaseConfig = {
-  apiKey: "AIzaSyBJF3av9wODz8r_tu-xwdvZ1Y8tjcI0nnc",
-  authDomain: "focustube1-36ac7.firebaseapp.com",
-  projectId: "focustube1-36ac7",
-  storageBucket: "focustube1-36ac7.firebasestorage.app",
-  messagingSenderId: "378393453266",
-  appId: "1:378393453266:web:55e0892b397a163645430b",
-  measurementId: "G-H8BBPD0R4G"
+  apiKey: window.__FIREBASE_CONFIG__?.apiKey,
+  authDomain: window.__FIREBASE_CONFIG__?.authDomain,
+  projectId: window.__FIREBASE_CONFIG__?.projectId,
+  storageBucket: window.__FIREBASE_CONFIG__?.storageBucket,
+  messagingSenderId: window.__FIREBASE_CONFIG__?.messagingSenderId,
+  appId: window.__FIREBASE_CONFIG__?.appId,
+  measurementId: window.__FIREBASE_CONFIG__?.measurementId,
 };
 
-try {
-    firebase.initializeApp(firebaseConfig);
-} catch (err) {
-    if (!/already exists/.test(err.message)) {
-        console.error('Firebase initialization error', err.stack);
-    }
+const isFirebaseConfigured = Object.values(firebaseConfig).every(val => val && val.length > 0);
+
+if (isFirebaseConfigured) {
+  try {
+      firebase.initializeApp(firebaseConfig);
+  } catch (err) {
+      if (!/already exists/.test(err.message)) {
+          console.error('Firebase initialization error', err.stack);
+      }
+  }
+} else {
+  console.warn('ℹ️ Firebase is not configured. Cloud sync will be disabled. See SECURITY.md for setup instructions.');
 }
 
 const AuthService = {
@@ -97,6 +103,61 @@ const AuthService = {
     }
 };
 
+function mergeCourseData(localCourse = {}, cloudCourse = {}) {
+    const merged = {
+        ...cloudCourse,
+        ...localCourse,
+        videos: [],
+        videosProgress: {},
+        notes: {}
+    };
+
+    const videosById = new Map();
+    [...(cloudCourse.videos || []), ...(localCourse.videos || [])].forEach(video => {
+        if (video && video.id && !videosById.has(video.id)) {
+            videosById.set(video.id, video);
+        }
+    });
+    merged.videos = Array.from(videosById.values());
+
+    const progressById = new Set([
+        ...Object.keys(cloudCourse.videosProgress || {}),
+        ...Object.keys(localCourse.videosProgress || {})
+    ]);
+    progressById.forEach(videoId => {
+        const cloudProgress = cloudCourse.videosProgress?.[videoId] || {};
+        const localProgress = localCourse.videosProgress?.[videoId] || {};
+        merged.videosProgress[videoId] = {
+            ...cloudProgress,
+            ...localProgress,
+            watchTime: Math.max(cloudProgress.watchTime || 0, localProgress.watchTime || 0),
+            completed: Boolean(cloudProgress.completed || localProgress.completed)
+        };
+    });
+
+    [...(cloudCourse.videos || []), ...(localCourse.videos || [])].forEach(video => {
+        if (!video?.id) return;
+        const notes = [
+            ...(cloudCourse.notes?.[video.id] || []),
+            ...(localCourse.notes?.[video.id] || [])
+        ];
+        if (notes.length > 0) {
+            merged.notes[video.id] = Array.from(new Map(
+                notes.map(note => [`${note.time}:${note.text}`, note])
+            ).values()).sort((a, b) => a.time - b.time);
+        }
+    });
+
+    merged.lastVideoIndex = Math.max(
+        cloudCourse.lastVideoIndex || 0,
+        localCourse.lastVideoIndex || 0
+    );
+    merged.isCompleted = merged.videos.length > 0 &&
+        merged.videos.every(video => merged.videosProgress[video.id]?.completed);
+
+    return merged;
+}
+
 // Global Auth State Observer
 if (firebaseConfig.apiKey !== "API_KEY") {
     let isFirstAuthStateCheck = true;
@@ -104,18 +165,26 @@ if (firebaseConfig.apiKey !== "API_KEY") {
     firebase.auth().onAuthStateChanged(async (user) => {
         if (user) {
             savedData.authLevel = 'cloud';
+            let cloudDataLoaded = false;
             
             try {
                 const cloudData = await AuthService.fetchDataFromCloud(user.uid);
+                cloudDataLoaded = true;
                 if (cloudData) {
                     // Merge cloud data with local
                     // Use cloud name only if we don't have a local name
                     if (!savedData.userName && cloudData.userName) {
                         savedData.userName = cloudData.userName;
                     }
-                    // LOCAL courses win over cloud (local is more recent)
-                    // Cloud-only courses are still added
-                    savedData.courses = { ...(cloudData.courses || {}), ...(savedData.courses || {}) };
+                    const localCourses = savedData.courses || {};
+                    const cloudCourses = cloudData.courses || {};
+                    savedData.courses = {};
+                    new Set([...Object.keys(cloudCourses), ...Object.keys(localCourses)]).forEach(courseId => {
+                        savedData.courses[courseId] = mergeCourseData(
+                            localCourses[courseId],
+                            cloudCourses[courseId]
+                        );
+                    });
                     savedData.totalStudyTime = Math.max(savedData.totalStudyTime || 0, cloudData.totalStudyTime || 0);
                 }
             } catch (err) { console.warn("Cloud sync warning:", err); }
@@ -126,6 +195,9 @@ if (firebaseConfig.apiKey !== "API_KEY") {
             }
 
             if (!dataRecoveryRequired) localStorage.setItem('playlearn_data', JSON.stringify(savedData));
+            if (cloudDataLoaded) {
+                await AuthService.syncDataToCloud(user.uid);
+            }
             updateAuthUI(user);
             
             // Route appropriately based on where we are
