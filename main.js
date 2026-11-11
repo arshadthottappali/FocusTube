@@ -56,7 +56,7 @@ if (isFirebaseConfigured) {
 
 const AuthService = {
     loginWithGoogle: async () => {
-        if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "API_KEY") {
+        if (!isFirebaseConfigured) {
             alert("Firebase is not configured yet! Please create a Firebase project and paste the config keys in main.js.");
             return;
         }
@@ -75,7 +75,7 @@ const AuthService = {
         }
     },
     logout: async () => {
-        if (firebaseConfig.apiKey === "API_KEY") return;
+        if (!isFirebaseConfigured) return;
         try {
             await firebase.auth().signOut();
         } catch (error) {
@@ -83,7 +83,7 @@ const AuthService = {
         }
     },
     syncDataToCloud: async (uid) => {
-        if (firebaseConfig.apiKey === "API_KEY") return;
+        if (!isFirebaseConfigured) return;
         if (dataRecoveryRequired) return;
         try {
             await firebase.firestore().collection("users").doc(uid).set(savedData);
@@ -92,7 +92,7 @@ const AuthService = {
         }
     },
     fetchDataFromCloud: async (uid) => {
-        if (firebaseConfig.apiKey === "API_KEY") return null;
+        if (!isFirebaseConfigured) return null;
         try {
             const doc = await firebase.firestore().collection("users").doc(uid).get();
             if (doc.exists) return FocusTubeSecurity.normalizeData(doc.data());
@@ -159,7 +159,7 @@ function mergeCourseData(localCourse = {}, cloudCourse = {}) {
 }
 
 // Global Auth State Observer
-if (firebaseConfig.apiKey !== "API_KEY") {
+if (isFirebaseConfigured) {
     let isFirstAuthStateCheck = true;
 
     firebase.auth().onAuthStateChanged(async (user) => {
@@ -1467,7 +1467,7 @@ function saveToLocalStorage() {
         console.warn("localStorage quota exceeded", e);
     }
     // Debounce cloud sync — max once per 60 seconds
-    if (savedData.authLevel === 'cloud' && firebaseConfig.apiKey !== "API_KEY") {
+    if (savedData.authLevel === 'cloud' && isFirebaseConfigured) {
         if (!cloudSyncTimer) {
             cloudSyncTimer = setTimeout(() => {
                 cloudSyncTimer = null;
@@ -1484,7 +1484,7 @@ function saveToLocalStorage() {
 function forceCloudSync() {
     if (dataRecoveryRequired) return;
     if (cloudSyncTimer) { clearTimeout(cloudSyncTimer); cloudSyncTimer = null; }
-    if (savedData.authLevel === 'cloud' && firebaseConfig.apiKey !== "API_KEY") {
+    if (savedData.authLevel === 'cloud' && isFirebaseConfigured) {
         const user = firebase.auth().currentUser;
         if (user) AuthService.syncDataToCloud(user.uid);
     }
